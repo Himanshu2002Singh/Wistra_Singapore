@@ -40,8 +40,11 @@ button { border: 0; background: none; color: inherit; cursor: pointer }
 .nav-item-link.active:after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 1.5px; background: var(--teal) }
 
 .header-right { display: flex; align-items: center; gap: 20px }
-.header-right button { display: flex; align-items: center; gap: 7px; font-size: 10px; letter-spacing: .14em }
-.menu-trigger { border-bottom: 1px solid currentColor; padding-bottom: 4px; font-weight: 700 }
+.mobile-nav-toggle { display: none; align-items: center; gap: 7px; font-size: 10px; letter-spacing: .14em }
+@media (max-width: 1023px) {
+  .mobile-nav-toggle { display: flex !important; }
+}
+
 
 .auth-nav-link { font-size: 10px; font-weight: 700; letter-spacing: .14em; padding: 7px 14px; border: 1px solid currentColor; transition: all .2s; border-radius: 2px }
 .auth-nav-link.login-link:hover { background: rgba(255,255,255,0.1); color: var(--teal) }

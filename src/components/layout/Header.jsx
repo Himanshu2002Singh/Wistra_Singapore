@@ -101,7 +101,7 @@ export default function Header({ cinematic = false, lightBg = false }) {
 
         {/* MOBILE MENU TRIGGER BUTTON (ONLY VISIBLE ON MOBILE < 1024px) */}
         <button 
-          className="lg:hidden p-2 text-current focus:outline-none flex items-center justify-center rounded"
+          className="mobile-nav-toggle lg:hidden p-2 text-current focus:outline-none flex items-center justify-center rounded"
           onClick={() => setMobileNavOpen(!mobileNavOpen)}
           aria-label="Toggle mobile menu"
         >
