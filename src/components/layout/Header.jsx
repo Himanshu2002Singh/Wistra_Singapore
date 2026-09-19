@@ -85,34 +85,34 @@ export default function Header({ cinematic = false, lightBg = false }) {
         ))}
       </nav>
 
-      {/* RIGHT: LOGIN & REGISTER ACTIONS (NO DESKTOP MENU BUTTON AFTER REGISTER) */}
-      <div className="header-right flex items-center gap-3 sm:gap-5">
+      {/* RIGHT: LOGIN & REGISTER ACTIONS (COMPACT ON MOBILE) + HAMBURGER BUTTON */}
+      <div className="header-right flex items-center gap-1.5 sm:gap-4">
         {/* LOGIN CTA */}
-        <Link to="/login" className="auth-nav-link login-link hidden sm:inline-flex items-center gap-1.5">
-          <User size={14} />
+        <Link to="/login" className="auth-nav-link login-link inline-flex items-center gap-1 px-2 py-1.5 text-[9px] sm:text-[10px] sm:px-3 sm.py-1.5">
+          <User size={12} className="hidden sm:inline" />
           <span>LOGIN</span>
         </Link>
 
         {/* REGISTER CTA - DIRECT NAVIGATION TO /register */}
-        <Link to="/register" className="auth-nav-link register-btn hidden sm:inline-flex items-center gap-1.5">
-          <UserPlus size={14} />
+        <Link to="/register" className="auth-nav-link register-btn inline-flex items-center gap-1 px-2 py-1.5 text-[9px] sm:text-[10px] sm:px-3 sm.py-1.5">
+          <UserPlus size={12} className="hidden sm:inline" />
           <span>REGISTER</span>
         </Link>
 
         {/* MOBILE MENU TRIGGER BUTTON (ONLY VISIBLE ON MOBILE < 1024px) */}
         <button 
-          className="mobile-nav-toggle lg:hidden p-2 text-current focus:outline-none flex items-center justify-center rounded"
+          className="mobile-nav-toggle lg:hidden p-1.5 text-current focus:outline-none flex items-center justify-center rounded"
           onClick={() => setMobileNavOpen(!mobileNavOpen)}
           aria-label="Toggle mobile menu"
         >
-          {mobileNavOpen ? <X size={22} /> : <Menu size={22} />}
+          {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
 
       {/* LIGHTWEIGHT INLINE RESPONSIVE MOBILE NAVIGATION PANEL (< 1024px) */}
       {mobileNavOpen && (
-        <div className="lg:hidden absolute top-full left-0 right-0 bg-[#0b1f33] text-white border-t border-white/10 shadow-2xl p-6 flex flex-col gap-4 animate-fade-in z-50">
-          <nav className="flex flex-col gap-2">
+        <div className="lg:hidden absolute top-full left-0 right-0 bg-[#0b1f33] text-white border-t border-white/10 shadow-2xl p-6 flex flex-col gap-3 animate-fade-in z-50">
+          <nav className="flex flex-col gap-1">
             {navLinks.map((link) => (
               <NavLink
                 key={link.href}
@@ -128,24 +128,6 @@ export default function Header({ cinematic = false, lightBg = false }) {
               </NavLink>
             ))}
           </nav>
-          <div className="flex flex-col gap-2 pt-2">
-            <Link 
-              to="/login" 
-              onClick={() => setMobileNavOpen(false)}
-              className="w-full text-center py-2.5 border border-white/30 text-white font-bold tracking-widest text-xs uppercase rounded hover:bg-white/10 transition flex items-center justify-center gap-2"
-            >
-              <User size={14} />
-              <span>LOGIN</span>
-            </Link>
-            <Link 
-              to="/register" 
-              onClick={() => setMobileNavOpen(false)}
-              className="w-full text-center py-2.5 bg-[var(--coral)] text-white font-bold tracking-widest text-xs uppercase rounded hover:bg-[#f27663] transition flex items-center justify-center gap-2"
-            >
-              <UserPlus size={14} />
-              <span>REGISTER</span>
-            </Link>
-          </div>
         </div>
       )}
     </header>
