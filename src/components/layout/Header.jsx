@@ -37,14 +37,14 @@ export default function Header({ cinematic = false, lightBg = false }) {
       className={`floating-header relative ${cinematic ? 'cinematic-header' : ''} ${scrolled ? 'scrolled-header' : ''} ${lightBg && !scrolled ? 'light-header' : ''}`}
     >
       {/* LEFT: OFFICIAL WISTA SINGAPORE LOGO */}
-      <div className="header-left">
-        <Link to="/" className="brand relative block w-[125px] h-[40px] flex items-center">
+      <div className="header-left flex items-center">
+        <Link to="/" className="brand relative block w-[95px] sm:w-[110px] md:w-[125px] h-[36px] sm:h-[40px] flex items-center">
           {isHomePage ? (
             /* HOMEPAGE ONLY: RESTORED PREVIOUS WHITE LOGO TREATMENT OVER CINEMATIC HERO */
             <img 
               src="/wista-logo-singapore-white.svg" 
               alt="WISTA Singapore" 
-              className="w-[125px] h-auto block"
+              className="w-full h-auto block"
             />
           ) : (
             /* OTHER PAGES: BLUE LOGO AT TOP -> WHITE LOGO WHEN SCROLLED */
@@ -53,7 +53,7 @@ export default function Header({ cinematic = false, lightBg = false }) {
               <img 
                 src="/wista-logo-singapore-blue.svg" 
                 alt="WISTA Singapore" 
-                className={`absolute left-0 top-1/2 -translate-y-1/2 w-[125px] h-auto transition-opacity duration-300 ease-in-out ${
+                className={`absolute left-0 top-1/2 -translate-y-1/2 w-full h-auto transition-opacity duration-300 ease-in-out ${
                   scrolled ? 'opacity-0 pointer-events-none' : 'opacity-100'
                 }`}
               />
@@ -61,7 +61,7 @@ export default function Header({ cinematic = false, lightBg = false }) {
               <img 
                 src="/wista-logo-singapore-white.svg" 
                 alt="WISTA Singapore" 
-                className={`absolute left-0 top-1/2 -translate-y-1/2 w-[125px] h-auto transition-opacity duration-300 ease-in-out ${
+                className={`absolute left-0 top-1/2 -translate-y-1/2 w-full h-auto transition-opacity duration-300 ease-in-out ${
                   scrolled ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}
               />
@@ -70,8 +70,8 @@ export default function Header({ cinematic = false, lightBg = false }) {
         </Link>
       </div>
 
-      {/* CENTER: DIRECT DESKTOP NAVIGATION (NO MENU/SEARCH/HAMBURGER ON DESKTOP) */}
-      <nav className="header-center hidden lg:flex items-center gap-7">
+      {/* CENTER: DESKTOP NAVIGATION (ONLY VISIBLE ON DESKTOP >= 1180px) */}
+      <nav className="header-center items-center gap-5 xl:gap-7">
         {navLinks.map((link) => (
           <NavLink
             key={link.href}
@@ -85,23 +85,29 @@ export default function Header({ cinematic = false, lightBg = false }) {
         ))}
       </nav>
 
-      {/* RIGHT: LOGIN & REGISTER ACTIONS (COMPACT ON MOBILE) + HAMBURGER BUTTON */}
-      <div className="header-right flex items-center gap-1.5 sm:gap-4">
+      {/* RIGHT: LOGIN & REGISTER ACTIONS (ALWAYS VISIBLE) + HAMBURGER BUTTON (< 1180px) */}
+      <div className="header-right flex items-center gap-1.5 sm:gap-2.5">
         {/* LOGIN CTA */}
-        <Link to="/login" className="auth-nav-link login-link inline-flex items-center gap-1 px-2 py-1.5 text-[9px] sm:text-[10px] sm:px-3 sm.py-1.5">
+        <Link 
+          to="/login" 
+          className="auth-nav-link login-link whitespace-nowrap inline-flex items-center gap-1 px-2 py-1 text-[9px] sm:text-[10px] sm:px-3 sm:py-1.5"
+        >
           <User size={12} className="hidden sm:inline" />
           <span>LOGIN</span>
         </Link>
 
         {/* REGISTER CTA - DIRECT NAVIGATION TO /register */}
-        <Link to="/register" className="auth-nav-link register-btn inline-flex items-center gap-1 px-2 py-1.5 text-[9px] sm:text-[10px] sm:px-3 sm.py-1.5">
+        <Link 
+          to="/register" 
+          className="auth-nav-link register-btn whitespace-nowrap inline-flex items-center gap-1 px-2 py-1 text-[9px] sm:text-[10px] sm:px-3 sm:py-1.5"
+        >
           <UserPlus size={12} className="hidden sm:inline" />
           <span>REGISTER</span>
         </Link>
 
-        {/* MOBILE MENU TRIGGER BUTTON (ONLY VISIBLE ON MOBILE < 1024px) */}
+        {/* MOBILE MENU TRIGGER BUTTON (ONLY VISIBLE ON NARROW SCREENS < 1180px) */}
         <button 
-          className="mobile-nav-toggle lg:hidden p-1.5 text-current focus:outline-none flex items-center justify-center rounded"
+          className="mobile-nav-toggle p-1.5 text-current focus:outline-none flex items-center justify-center rounded"
           onClick={() => setMobileNavOpen(!mobileNavOpen)}
           aria-label="Toggle mobile menu"
         >
@@ -109,9 +115,9 @@ export default function Header({ cinematic = false, lightBg = false }) {
         </button>
       </div>
 
-      {/* LIGHTWEIGHT INLINE RESPONSIVE MOBILE NAVIGATION PANEL (< 1024px) */}
+      {/* LIGHTWEIGHT INLINE RESPONSIVE MOBILE NAVIGATION PANEL (< 1180px) */}
       {mobileNavOpen && (
-        <div className="lg:hidden absolute top-full left-0 right-0 bg-[#0b1f33] text-white border-t border-white/10 shadow-2xl p-6 flex flex-col gap-3 animate-fade-in z-50">
+        <div className="mobile-dropdown-panel absolute top-full left-0 right-0 bg-[#0b1f33] text-white border-t border-white/10 shadow-2xl p-5 sm:p-6 flex flex-col gap-3 animate-fade-in z-50">
           <nav className="flex flex-col gap-1">
             {navLinks.map((link) => (
               <NavLink
