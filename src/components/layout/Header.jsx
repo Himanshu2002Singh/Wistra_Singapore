@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { User, UserPlus } from 'lucide-react'
+import { User, UserPlus, Menu, X } from 'lucide-react'
 
 const navLinks = [
   { label: 'ABOUT', href: '/about' },
@@ -14,6 +14,7 @@ const navLinks = [
 
 export default function Header({ cinematic = false, lightBg = false }) {
   const [scrolled, setScrolled] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const location = useLocation()
 
   useEffect(() => {
@@ -24,11 +25,16 @@ export default function Header({ cinematic = false, lightBg = false }) {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  // Auto-close mobile nav on route change
+  useEffect(() => {
+    setMobileNavOpen(false)
+  }, [location.pathname])
+
   const isHomePage = cinematic || location.pathname === '/'
 
   return (
     <header 
-      className={`floating-header ${cinematic ? 'cinematic-header' : ''} ${scrolled ? 'scrolled-header' : ''} ${lightBg && !scrolled ? 'light-header' : ''}`}
+      className={`floating-header relative ${cinematic ? 'cinematic-header' : ''} ${scrolled ? 'scrolled-header' : ''} ${lightBg && !scrolled ? 'light-header' : ''}`}
     >
       {/* LEFT: OFFICIAL WISTA SINGAPORE LOGO */}
       <div className="header-left">
@@ -80,7 +86,7 @@ export default function Header({ cinematic = false, lightBg = false }) {
       </nav>
 
       {/* RIGHT: LOGIN & REGISTER ACTIONS (NO DESKTOP MENU BUTTON AFTER REGISTER) */}
-      <div className="header-right">
+      <div className="header-right flex items-center gap-3 sm:gap-5">
         {/* LOGIN CTA */}
         <Link to="/login" className="auth-nav-link login-link hidden sm:inline-flex items-center gap-1.5">
           <User size={14} />
@@ -93,8 +99,55 @@ export default function Header({ cinematic = false, lightBg = false }) {
           <span>REGISTER</span>
         </Link>
 
-        
+        {/* MOBILE MENU TRIGGER BUTTON (ONLY VISIBLE ON MOBILE < 1024px) */}
+        <button 
+          className="lg:hidden p-2 text-current focus:outline-none flex items-center justify-center rounded"
+          onClick={() => setMobileNavOpen(!mobileNavOpen)}
+          aria-label="Toggle mobile menu"
+        >
+          {mobileNavOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
       </div>
+
+      {/* LIGHTWEIGHT INLINE RESPONSIVE MOBILE NAVIGATION PANEL (< 1024px) */}
+      {mobileNavOpen && (
+        <div className="lg:hidden absolute top-full left-0 right-0 bg-[#0b1f33] text-white border-t border-white/10 shadow-2xl p-6 flex flex-col gap-4 animate-fade-in z-50">
+          <nav className="flex flex-col gap-2">
+            {navLinks.map((link) => (
+              <NavLink
+                key={link.href}
+                to={link.href}
+                onClick={() => setMobileNavOpen(false)}
+                className={({ isActive }) => 
+                  `text-xs font-bold tracking-[0.14em] py-2.5 border-b border-white/10 transition-colors ${
+                    isActive ? 'text-[var(--teal)]' : 'text-slate-200 hover:text-white'
+                  }`
+                }
+              >
+                {link.label}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="flex flex-col gap-2 pt-2">
+            <Link 
+              to="/login" 
+              onClick={() => setMobileNavOpen(false)}
+              className="w-full text-center py-2.5 border border-white/30 text-white font-bold tracking-widest text-xs uppercase rounded hover:bg-white/10 transition flex items-center justify-center gap-2"
+            >
+              <User size={14} />
+              <span>LOGIN</span>
+            </Link>
+            <Link 
+              to="/register" 
+              onClick={() => setMobileNavOpen(false)}
+              className="w-full text-center py-2.5 bg-[var(--coral)] text-white font-bold tracking-widest text-xs uppercase rounded hover:bg-[#f27663] transition flex items-center justify-center gap-2"
+            >
+              <UserPlus size={14} />
+              <span>REGISTER</span>
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   )
 }
