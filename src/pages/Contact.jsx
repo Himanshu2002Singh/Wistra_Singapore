@@ -2,6 +2,9 @@ import React from 'react'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
 
+// Exclusive Curated Background Image for Contact
+import contactHeroBg from '../assets/images/wista/hero/contact-hero-bg.jpg'
+
 export default function Contact() {
   return (
     <PageShell currentPage="CONTACT">
@@ -9,6 +12,8 @@ export default function Contact() {
         eyebrow="08 — CONTACT" 
         title={<>Let&apos;s<br /><em>connect.</em></>} 
         lead="Have a question about WISTA Singapore, membership or collaboration? We would love to hear from you."
+        bgImage={contactHeroBg}
+        bgPosition="center 30%"
       />
       <section className="route-section content-dark">
         <div className="contact-layout">
@@ -36,3 +41,4 @@ export default function Contact() {
     </PageShell>
   )
 }
+

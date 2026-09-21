@@ -39,34 +39,11 @@ export default function Header({ cinematic = false, lightBg = false }) {
       {/* LEFT: OFFICIAL WISTA SINGAPORE LOGO */}
       <div className="header-left flex items-center">
         <Link to="/" className="brand relative block w-[95px] sm:w-[110px] md:w-[125px] h-[36px] sm:h-[40px] flex items-center">
-          {isHomePage ? (
-            /* HOMEPAGE ONLY: RESTORED PREVIOUS WHITE LOGO TREATMENT OVER CINEMATIC HERO */
-            <img 
-              src="/wista-logo-singapore-white.svg" 
-              alt="WISTA Singapore" 
-              className="w-full h-auto block"
-            />
-          ) : (
-            /* OTHER PAGES: BLUE LOGO AT TOP -> WHITE LOGO WHEN SCROLLED */
-            <>
-              {/* Blue Singapore Logo - Top of page state for inner pages */}
-              <img 
-                src="/wista-logo-singapore-blue.svg" 
-                alt="WISTA Singapore" 
-                className={`absolute left-0 top-1/2 -translate-y-1/2 w-full h-auto transition-opacity duration-300 ease-in-out ${
-                  scrolled ? 'opacity-0 pointer-events-none' : 'opacity-100'
-                }`}
-              />
-              {/* White Singapore Logo - Scrolled state for inner pages */}
-              <img 
-                src="/wista-logo-singapore-white.svg" 
-                alt="WISTA Singapore" 
-                className={`absolute left-0 top-1/2 -translate-y-1/2 w-full h-auto transition-opacity duration-300 ease-in-out ${
-                  scrolled ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                }`}
-              />
-            </>
-          )}
+          <img 
+            src="/wista-logo-singapore-white.svg" 
+            alt="WISTA Singapore" 
+            className="w-full h-auto block drop-shadow"
+          />
         </Link>
       </div>
 

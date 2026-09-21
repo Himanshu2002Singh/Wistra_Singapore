@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import Eyebrow from '@/components/editorial/Eyebrow'
@@ -8,6 +8,21 @@ import ArrowLink from '@/components/editorial/ArrowLink'
 import EditorialImage from '@/components/editorial/EditorialImage'
 import ScrollReveal from '@/components/ui/ScrollReveal'
 import Lightbox from '@/components/ui/Lightbox'
+
+// Exclusive Curated WISTA Image Imports for Home
+import homeHeroBg from '../assets/images/wista/hero/home-hero-bg.jpg'
+import homeWelcome from '../assets/images/wista/home/home-welcome.jpg'
+import homeNetwork1 from '../assets/images/wista/home/home-network-1.jpg'
+import homeNetwork2 from '../assets/images/wista/home/home-network-2.jpg'
+import homeCommunity from '../assets/images/wista/home/home-community.jpg'
+import homePrinciples from '../assets/images/wista/home/home-principles.jpg'
+import homeBreak from '../assets/images/wista/home/home-break.jpg'
+import homeEventMain from '../assets/images/wista/home/home-event-main.jpg'
+import homeEventSec from '../assets/images/wista/home/home-event-sec.jpg'
+import homeInitiative from '../assets/images/wista/home/home-initiative.jpg'
+import homeGal1 from '../assets/images/wista/home/home-gal-1.jpg'
+import homeGal2 from '../assets/images/wista/home/home-gal-2.jpg'
+import homeGal3 from '../assets/images/wista/home/home-gal-3.jpg'
 
 const principles = [
   ['01', 'PROFESSIONAL DEVELOPMENT', 'Knowledge, mentorship and the confidence to lead.'],
@@ -38,9 +53,15 @@ function HeroMotion() {
   }, [])
 
   return (
-    <section ref={heroRef} className="editorial-hero cinematic-hero">
-      <div className="hero-port" />
-      <div className="hero-copy">
+    <section ref={heroRef} className="editorial-hero cinematic-hero relative overflow-hidden bg-[#0b1f33]">
+      <div 
+        className="absolute inset-0 bg-cover scale-105 pointer-events-none transition-transform duration-1000"
+        style={{ backgroundImage: `url(${homeHeroBg})`, backgroundPosition: 'center 30%' }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#0b1f33]/90 via-[#0b1f33]/65 to-[#0b1f33]/30 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f33] via-transparent to-transparent pointer-events-none" />
+      <div className="hero-copy relative z-10">
+
         <Eyebrow>PEOPLE · OPPORTUNITIES · COLLABORATION</Eyebrow>
         <h1>
           <span className="reveal-line">WOMEN</span>
@@ -54,14 +75,14 @@ function HeroMotion() {
           <ArrowLink href="/network">Explore our network</ArrowLink>
         </div>
       </div>
-      <div className="hero-message">
+      <div className="hero-message relative z-10">
         Stronger Together<br />
         <em>Across Oceans</em>
         <span className="block text-[8px] font-sans tracking-[0.2em] text-[#8cd4d3] mt-2 font-normal">
           SINGAPORE 01°17′N 103°50′E
         </span>
       </div>
-      <div className="hero-stats">
+      <div className="hero-stats relative z-10">
         <div>
           <strong>200<span>+</span></strong>
           <small>MEMBERS<br />IN SINGAPORE</small>
@@ -78,9 +99,6 @@ function HeroMotion() {
           <strong>GLOBAL</strong>
           <small>MARITIME<br />NETWORK</small>
         </div>
-      </div>
-      <div className="scroll-label">
-        SCROLL TO EXPLORE <ArrowDownRight size={15} />
       </div>
     </section>
   )
@@ -110,18 +128,18 @@ export default function Home() {
       <ScrollReveal>
         <section className="statement section-pad editorial-about">
           <EditorialImage 
-            src="/images/wista/1556605318967.jpeg" 
-            alt="WISTA Singapore members gathered in a maritime setting" 
+            src={homeWelcome} 
+            alt="President Yukie Teo addressing WISTA Singapore keynote speech" 
             className="about-photo"
-            onClick={() => setActiveLightbox({ src: '/images/wista/1556605318967.jpeg', alt: 'WISTA Singapore members', caption: 'WISTA Singapore Gathering — Waterfront' })}
+            onClick={() => setActiveLightbox({ src: homeWelcome, alt: 'President Yukie Teo Stage Keynote', caption: 'Yukie Teo — President, WISTA Singapore delivering keynote speech' })}
           />
           <div className="statement-big">
             Singapore's network<br />connecting <em>women</em><br />across maritime<br />and trade.
-            <small>WISTA SINGAPORE<br />Women shaping the maritime and trading community.</small>
+            <small>WISTA SINGAPORE<br />Led by President Yukie Teo &amp; Executive Committee.</small>
           </div>
           <div className="statement-side">
-            <Eyebrow>WHO WE ARE</Eyebrow>
-            <p>WISTA Singapore is a networking organization for women at the management level in the maritime, trading and logistics sectors.</p>
+            <Eyebrow>PRESIDENT'S WELCOME</Eyebrow>
+            <p>Welcome to WISTA Singapore. We are a premier professional network bringing together executive women across shipping, trading, and port logistics in Singapore.</p>
             <ArrowLink href="/about">Discover WISTA</ArrowLink>
           </div>
         </section>
@@ -140,16 +158,16 @@ export default function Home() {
             <ArrowLink href="/network">Explore the network</ArrowLink>
           </div>
           <EditorialImage 
-            src="/images/wista/1558629943870.jpeg" 
-            alt="WISTA community gathered around a maritime waterfront" 
+            src={homeNetwork1} 
+            alt="WISTA International Barcelona Congress delegation" 
             className="network-main-photo"
-            onClick={() => setActiveLightbox({ src: '/images/wista/1558629943870.jpeg', alt: 'WISTA Waterfront Summit', caption: 'Global WISTA Summit — Maritime Horizon' })}
+            onClick={() => setActiveLightbox({ src: homeNetwork1, alt: 'WISTA International Congress', caption: 'Global WISTA International Congress Delegation' })}
           />
           <EditorialImage 
-            src="/images/wista/1569640560785.jpeg" 
-            alt="WISTA members connecting at an event" 
+            src={homeNetwork2} 
+            alt="WISTA Singapore members networking" 
             className="network-offset-photo"
-            onClick={() => setActiveLightbox({ src: '/images/wista/1569640560785.jpeg', alt: 'WISTA Networking Event', caption: 'International Member Networking' })}
+            onClick={() => setActiveLightbox({ src: homeNetwork2, alt: 'WISTA Networking', caption: 'Singapore Executive Networking Session' })}
           />
         </section>
       </ScrollReveal>
@@ -162,10 +180,10 @@ export default function Home() {
           </div>
           <div className="community-feature">
             <EditorialImage 
-              src="/images/wista/1560693768350.jpeg" 
-              alt="WISTA members together at a community gathering" 
+              src={homeCommunity} 
+              alt="WISTA Singapore members community gathering" 
               className="community-photo"
-              onClick={() => setActiveLightbox({ src: '/images/wista/1560693768350.jpeg', alt: 'WISTA Community', caption: 'WISTA Singapore Annual Forum' })}
+              onClick={() => setActiveLightbox({ src: homeCommunity, alt: 'WISTA Community', caption: 'WISTA Singapore Annual Forum Delegation' })}
             />
             <div className="number-row">
               <div><strong>200<span>+</span></strong><small>SINGAPORE MEMBERS</small></div>
@@ -199,17 +217,17 @@ export default function Home() {
             ))}
           </div>
           <EditorialImage 
-            src="/images/wista/20190130_215604.jpg" 
-            alt="WISTA members sharing a moment together" 
+            src={homePrinciples} 
+            alt="WISTA Singapore Year-End Gala executive reception" 
             className="principle-image"
-            onClick={() => setActiveLightbox({ src: '/images/wista/20190130_215604.jpg', alt: 'WISTA Principles', caption: 'Professional Development & Leadership' })}
+            onClick={() => setActiveLightbox({ src: homePrinciples, alt: 'Executive Reception', caption: 'Professional Development & Executive Leadership' })}
           />
         </section>
       </ScrollReveal>
 
       <ScrollReveal>
         <section className="image-break">
-          <img src="/images/wista/1550569091387.jpeg" alt="Women gathered at a WISTA maritime event" loading="lazy" />
+          <img src={homeBreak} alt="Royal Navy warship deck view looking out over Singapore strait" loading="lazy" />
           <div>MORE WOMEN.<br /><span>STRONGER VOICES.</span></div>
         </section>
       </ScrollReveal>
@@ -225,10 +243,10 @@ export default function Home() {
           </div>
           <div className="event-feature">
             <EditorialImage 
-              src="/images/wista/20221027_221133.jpg" 
-              alt="WISTA members at an international conference" 
+              src={homeEventMain} 
+              alt="WISTA Singapore Annual Gala" 
               className="event-main-photo"
-              onClick={() => setActiveLightbox({ src: '/images/wista/20221027_221133.jpg', alt: 'WISTA Conference', caption: 'Singapore Maritime Conference 2026' })}
+              onClick={() => setActiveLightbox({ src: homeEventMain, alt: 'WISTA Annual Gala', caption: 'WISTA Singapore Annual Gala — Marina Bay Sands' })}
             />
             <div>
               <p className="event-date">SINGAPORE MARITIME COMMUNITY</p>
@@ -237,10 +255,10 @@ export default function Home() {
               <ArrowLink href="/events">Explore events</ArrowLink>
             </div>
             <EditorialImage 
-              src="/images/wista/751554E1-8F89-48C9-9EE2-243590A8B239.jpeg" 
-              alt="WISTA event guests networking together" 
+              src={homeEventSec} 
+              alt="Asia Pacific Maritime panel" 
               className="event-secondary-photo"
-              onClick={() => setActiveLightbox({ src: '/images/wista/751554E1-8F89-48C9-9EE2-243590A8B239.jpeg', alt: 'WISTA Event Guests', caption: 'Networking Evening — Marina Bay' })}
+              onClick={() => setActiveLightbox({ src: homeEventSec, alt: 'APM 2024 Panel', caption: 'Asia Pacific Maritime Executive Panel' })}
             />
           </div>
         </section>
@@ -255,10 +273,10 @@ export default function Home() {
             <ArrowLink href="/news">Read news &amp; media</ArrowLink>
           </div>
           <EditorialImage 
-            src="/images/wista/1561481404960.jpeg" 
-            alt="WISTA campaign artwork about women in maritime" 
+            src={homeInitiative} 
+            alt="WISTA Singapore Silver Anniversary milestone awards" 
             className="initiative-photo"
-            onClick={() => setActiveLightbox({ src: '/images/wista/1561481404960.jpeg', alt: 'WISTA Initiatives', caption: 'Women in Maritime Campaign' })}
+            onClick={() => setActiveLightbox({ src: homeInitiative, alt: '25th Anniversary Milestone', caption: 'WISTA Singapore 25 Years of Leadership & Honors' })}
           />
         </section>
       </ScrollReveal>
@@ -268,24 +286,24 @@ export default function Home() {
           <div>
             <Eyebrow>06 — COMMUNITY</Eyebrow>
             <h2>Across every<br /><em>horizon.</em></h2>
-            <p>From formal gatherings to the moments between them, this is a network built on human connection.</p>
+            <p>From formal gatherings to naval deck exchanges, this is a network built on human connection.</p>
             <ArrowLink href="/gallery">Visit the gallery</ArrowLink>
           </div>
           <div className="gallery-images">
             <EditorialImage 
-              src="/images/wista/1560693777648.jpeg" 
-              alt="WISTA members networking at a maritime gathering"
-              onClick={() => setActiveLightbox({ src: '/images/wista/1560693777648.jpeg', alt: 'Community Horizon 1', caption: 'Dockside Networking' })}
+              src={homeGal1} 
+              alt="Keppel Bay dockside networking"
+              onClick={() => setActiveLightbox({ src: homeGal1, alt: 'Dockside Networking', caption: 'Dockside Networking & Gathering' })}
             />
             <EditorialImage 
-              src="/images/wista/1560693770560.jpeg" 
-              alt="WISTA community celebrating together"
-              onClick={() => setActiveLightbox({ src: '/images/wista/1560693770560.jpeg', alt: 'Community Horizon 2', caption: 'Community Celebration' })}
+              src={homeGal2} 
+              alt="Community celebration gathering"
+              onClick={() => setActiveLightbox({ src: homeGal2, alt: 'Community Celebration', caption: 'WISTA Community Celebration' })}
             />
             <EditorialImage 
-              src="/images/wista/1560693780442.jpeg" 
-              alt="WISTA members sharing a cultural moment"
-              onClick={() => setActiveLightbox({ src: '/images/wista/1560693780442.jpeg', alt: 'Community Horizon 3', caption: 'Cultural Evening' })}
+              src={homeGal3} 
+              alt="Cultural networking evening"
+              onClick={() => setActiveLightbox({ src: homeGal3, alt: 'Cultural Evening', caption: 'Cultural Networking Evening' })}
             />
           </div>
         </section>
@@ -304,3 +322,5 @@ export default function Home() {
     </main>
   )
 }
+
+
