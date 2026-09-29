@@ -10,8 +10,8 @@ export default function PageIntro({ eyebrow, title, lead, bgImage, bgPosition = 
             style={{ backgroundImage: `url(${bgImage})`, backgroundPosition: bgPosition }}
           />
           {/* Subtle gradient overlays for text legibility while preserving full original image color */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0b1f33]/92 via-[#0b1f33]/65 to-[#0b1f33]/20 pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f33] via-transparent to-[#0b1f33]/45 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0b1f33]/80 via-[#0b1f33]/55 to-[#0b1f33]/20 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f33]/80 via-transparent to-transparent pointer-events-none" />
         </>
       )}
       <div className="relative z-10">

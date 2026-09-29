@@ -10,7 +10,7 @@ import ScrollReveal from '@/components/ui/ScrollReveal'
 import Lightbox from '@/components/ui/Lightbox'
 
 // Exclusive Curated WISTA Image Imports for Home
-import homeHeroBg from '../assets/images/wista/hero/home-hero-bg.jpg'
+import homeHeroBg from '../assets/images/wista/hero/wista-ssa-41st-anniversary-gala.jpg'
 import homeWelcome from '../assets/images/wista/home/home-welcome.jpg'
 import homeNetwork1 from '../assets/images/wista/home/home-network-1.jpg'
 import homeNetwork2 from '../assets/images/wista/home/home-network-2.jpg'
@@ -58,8 +58,8 @@ function HeroMotion() {
         className="absolute inset-0 bg-cover scale-105 pointer-events-none transition-transform duration-1000"
         style={{ backgroundImage: `url(${homeHeroBg})`, backgroundPosition: 'center 30%' }}
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0b1f33]/90 via-[#0b1f33]/65 to-[#0b1f33]/30 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f33] via-transparent to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#0b1f33]/80 via-[#0b1f33]/55 to-[#0b1f33]/20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f33]/80 via-transparent to-transparent pointer-events-none" />
       <div className="hero-copy relative z-10">
 
         <Eyebrow>PEOPLE · OPPORTUNITIES · COLLABORATION</Eyebrow>
@@ -322,5 +322,3 @@ export default function Home() {
     </main>
   )
 }
-
-
