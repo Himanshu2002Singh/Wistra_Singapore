@@ -1,24 +1,52 @@
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
-import { ArrowUpRight, Lock, Mail } from 'lucide-react'
+import { ArrowUpRight, Lock, Mail, AlertCircle } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(false)
   const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
+  const [errorMessage, setErrorMessage] = useState('')
 
-  const handleSubmit = (e) => {
+  const { login } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setErrorMessage('')
     setLoading(true)
-    setTimeout(() => {
+
+    try {
+      const authenticatedUser = await login(email, password)
       setLoading(false)
-      // Navigate to Member Dashboard for demo
-      navigate('/member/dashboard')
-    }, 800)
+
+      const roleName = authenticatedUser?.role?.name || authenticatedUser?.role || 'MEMBER'
+      const redirectPath = location.state?.from?.pathname
+
+      const adminRoles = [
+        'SUPER_ADMIN',
+        'MEMBERSHIP_ADMIN',
+        'FINANCE_ADMIN',
+        'EVENTS_ADMIN',
+        'COMMUNICATIONS_ADMIN',
+      ]
+
+      if (redirectPath) {
+        navigate(redirectPath, { replace: true })
+      } else if (adminRoles.includes(roleName)) {
+        navigate('/admin/dashboard', { replace: true })
+      } else {
+        navigate('/member/dashboard', { replace: true })
+      }
+    } catch (err) {
+      setLoading(false)
+      setErrorMessage(err.message || 'Invalid email or password.')
+    }
   }
 
   return (
@@ -31,6 +59,13 @@ export default function Login() {
 
       <section className="route-section content-dark py-16">
         <div className="max-w-md mx-auto bg-white/5 border border-white/10 p-8 md:p-12 rounded-lg">
+          {errorMessage && (
+            <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded text-red-200 text-xs font-semibold flex items-center gap-2">
+              <AlertCircle size={16} className="text-red-400 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="form-group">
               <label className="text-white text-xs tracking-widest uppercase font-bold mb-2 flex items-center gap-2">

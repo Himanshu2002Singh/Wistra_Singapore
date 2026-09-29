@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import CustomCursor from '@/components/ui/CustomCursor'
 import BackToTop from '@/components/ui/BackToTop'
+import { AuthProvider } from '@/context/AuthContext'
 
 // Public pages
 const Home = lazy(() => import('@/pages/Home'))
@@ -59,7 +60,7 @@ function Loading() {
 
 export default function App() {
   return (
-    <>
+    <AuthProvider>
       <CustomCursor />
       <BackToTop />
       <Suspense fallback={<Loading />}>
@@ -102,6 +103,6 @@ export default function App() {
           <Route path="/admin/users" element={<AdminUsers />} />
         </Routes>
       </Suspense>
-    </>
+    </AuthProvider>
   )
 }

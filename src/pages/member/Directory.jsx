@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import MemberLayout from '@/components/member/MemberLayout';
+import { Users, Search, Building, User, Mail, ArrowUpRight } from 'lucide-react';
 
 const mockMembers = [
-  { id: 1, name: 'Alice Chen', company: 'Pacific Maritime Ltd', designation: 'CEO', type: 'Corporate Member', initial: 'A' },
-  { id: 2, name: 'Beatrice Wong', company: 'Global Shipping Solutions', designation: 'Logistics Director', type: 'Individual Member', initial: 'B' },
-  { id: 3, name: 'Clara Ng', company: 'Marine Law & Partners', designation: 'Senior Partner', type: 'Individual Member', initial: 'C' },
-  { id: 4, name: 'Diana Lim', company: 'Ocean Tech Innovations', designation: 'CTO', type: 'Corporate Member', initial: 'D' },
-  { id: 5, name: 'Eleanor Goh', company: 'Port Operations SG', designation: 'Terminal Manager', type: 'Individual Member', initial: 'E' },
-  { id: 6, name: 'Fiona Teo', company: 'Maritime Finance Corp', designation: 'CFO', type: 'Corporate Member', initial: 'F' },
+  { id: 1, name: 'Alice Chen', company: 'Pacific Maritime Ltd', designation: 'CEO', type: 'Corporate Member', initial: 'AC' },
+  { id: 2, name: 'Beatrice Wong', company: 'Global Shipping Solutions', designation: 'Logistics Director', type: 'Individual Member', initial: 'BW' },
+  { id: 3, name: 'Clara Ng', company: 'Marine Law & Partners', designation: 'Senior Partner', type: 'Individual Member', initial: 'CN' },
+  { id: 4, name: 'Diana Lim', company: 'Ocean Tech Innovations', designation: 'CTO', type: 'Corporate Member', initial: 'DL' },
+  { id: 5, name: 'Eleanor Goh', company: 'Port Operations SG', designation: 'Terminal Manager', type: 'Individual Member', initial: 'EG' },
+  { id: 6, name: 'Fiona Teo', company: 'Maritime Finance Corp', designation: 'CFO', type: 'Corporate Member', initial: 'FT' },
 ];
 
 const Directory = () => {
@@ -20,60 +21,79 @@ const Directory = () => {
 
   return (
     <MemberLayout>
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-serif text-ink mb-2">Member Directory</h1>
-          <p className="text-ink/70">Connect with fellow WISTA Singapore members.</p>
-        </div>
-      </div>
-
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-line mb-8 filter-bar flex flex-col md:flex-row gap-4">
-        <div className="flex-1 relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-ink/50"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <div className="space-y-8 pb-16">
+        {/* Header */}
+        <div className="border-b border-white/10 pb-5">
+          <div className="flex items-center gap-2 text-[#5ee5e9] text-xs font-bold tracking-[0.2em] uppercase mb-1">
+            <Users size={14} />
+            <span>GLOBAL NETWORK</span>
           </div>
-          <input 
-            type="text" 
-            placeholder="Search by name or company..." 
-            className="w-full pl-10 pr-4 py-2 border border-line rounded-md focus:outline-none focus:border-teal"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <h1 className="text-3xl sm:text-4xl font-[var(--serif)] font-normal text-white">Member Directory</h1>
+          <p className="text-sm text-slate-300">Connect with fellow female leaders and maritime executives across Singapore.</p>
         </div>
-        <select className="border border-line rounded-md px-4 py-2 bg-white focus:outline-none focus:border-teal text-ink">
-          <option value="">All Membership Types</option>
-          <option value="individual">Individual Member</option>
-          <option value="corporate">Corporate Member</option>
-        </select>
-        <button className="px-6 py-2 bg-teal text-white rounded-md hover:bg-teal/90 transition-colors">
-          Search
-        </button>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredMembers.map(member => (
-          <div key={member.id} className="bg-white rounded-lg shadow-sm border border-line p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-start gap-4 mb-4">
-              <div className="w-12 h-12 rounded-full bg-ivory border border-line flex items-center justify-center text-xl font-serif text-blue">
-                {member.initial}
-              </div>
-              <div>
-                <h3 className="font-semibold text-ink text-lg">{member.name}</h3>
-                <p className="text-sm text-teal">{member.designation}</p>
-              </div>
-            </div>
-            <div className="mb-4">
-              <p className="text-sm text-ink flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-ink/50"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
-                {member.company}
-              </p>
-            </div>
-            <div className="pt-4 border-t border-line flex justify-between items-center">
-              <span className="text-xs bg-ivory px-2 py-1 rounded text-ink/70">{member.type}</span>
-              <button className="text-sm text-blue hover:underline">View Profile</button>
-            </div>
+        {/* Filter Bar */}
+        <div className="bg-[#0c243b] p-4 sm:p-6 rounded-2xl border border-white/10 shadow-2xl flex flex-col md:flex-row gap-4">
+          <div className="flex-1 relative">
+            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Search by member name or company..." 
+              className="w-full pl-11 pr-4 py-3 bg-[#071626] border border-white/20 rounded-lg text-white text-xs placeholder:text-slate-500 focus:border-[#5ee5e9] focus:outline-none"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-        ))}
+          <select className="bg-[#071626] border border-white/20 rounded-lg px-4 py-3 text-xs text-white focus:outline-none focus:border-[#5ee5e9]">
+            <option value="">All Membership Categories</option>
+            <option value="individual">Individual Member</option>
+            <option value="corporate">Corporate Member</option>
+          </select>
+          <button className="px-6 py-3 bg-[#e85d4a] hover:bg-[#f27663] text-white text-xs font-bold tracking-widest uppercase rounded-lg transition cursor-pointer">
+            Search
+          </button>
+        </div>
+
+        {/* Member Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredMembers.map(member => (
+            <div 
+              key={member.id} 
+              className="bg-[#0c243b] border border-white/10 hover:border-[#5ee5e9]/40 rounded-2xl p-6 shadow-2xl transition duration-200 flex flex-col justify-between space-y-4 group"
+            >
+              <div className="space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#163d5a] to-[#1b9aaa] border border-[#5ee5e9]/40 flex items-center justify-center text-sm font-bold text-white shrink-0 shadow-md">
+                    {member.initial}
+                  </div>
+                  <div>
+                    <h3 className="font-[var(--serif)] text-xl text-white group-hover:text-[#5ee5e9] transition">
+                      {member.name}
+                    </h3>
+                    <p className="text-xs text-[#5ee5e9] font-medium">{member.designation}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-2 border-t border-white/10">
+                  <p className="text-xs text-slate-300 flex items-center gap-2">
+                    <Building size={14} className="text-slate-400" />
+                    {member.company}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/10 flex justify-between items-center text-xs">
+                <span className="bg-[#071626] border border-white/10 px-2.5 py-1 rounded text-[10px] font-semibold text-slate-300">
+                  {member.type}
+                </span>
+                <button className="text-[#5ee5e9] hover:underline font-semibold flex items-center gap-1">
+                  <span>View Profile</span>
+                  <ArrowUpRight size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </MemberLayout>
   );
