@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
 import { ArrowUpRight, User, Building, ChevronDown } from 'lucide-react'
+import registerHeroBg from '../assets/images/wista/membership/membership-reception.jpg'
 
 export default function Register() {
   const [selectedType, setSelectedType] = useState('')
@@ -26,11 +27,13 @@ export default function Register() {
         eyebrow="JOIN WISTA SINGAPORE" 
         title={<>Choose your <em>membership.</em></>} 
         lead="Choose your membership type to begin your WISTA Singapore application."
+        bgImage={registerHeroBg}
+        variant="form"
       />
 
-      <section className="route-section content-dark py-16">
+      <section className="route-section registration-selection py-16">
         {/* STEP 1: DROPDOWN SELECTOR */}
-        <div className="max-w-xl mx-auto mb-16 bg-white/5 p-8 border border-white/10 rounded-lg text-center">
+        <div className="registration-type-selector max-w-xl mx-auto mb-16 bg-white/5 p-8 border border-white/10 rounded-lg text-center">
           <p className="text-[10px] font-bold tracking-[.18em] uppercase text-[var(--coral)] mb-2">
             STEP 1
           </p>
@@ -62,7 +65,7 @@ export default function Register() {
         {/* EDITORIAL SELECTION CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
           {/* INDIVIDUAL CARD */}
-          <div className="bg-white/5 border border-white/10 p-8 md:p-10 rounded-lg flex flex-col justify-between hover:border-[var(--coral)] transition group">
+          <div className="registration-choice bg-white/5 border border-white/10 p-8 md:p-10 rounded-lg flex flex-col justify-between hover:border-[var(--coral)] transition group">
             <div>
               <div className="w-12 h-12 rounded-full bg-[var(--coral)]/20 text-[var(--coral)] flex items-center justify-center mb-6">
                 <User size={24} />
@@ -85,7 +88,7 @@ export default function Register() {
           </div>
 
           {/* CORPORATE CARD */}
-          <div className="bg-white/5 border border-white/10 p-8 md:p-10 rounded-lg flex flex-col justify-between hover:border-[var(--teal)] transition group">
+          <div className="registration-choice bg-white/5 border border-white/10 p-8 md:p-10 rounded-lg flex flex-col justify-between hover:border-[var(--teal)] transition group">
             <div>
               <div className="w-12 h-12 rounded-full bg-[var(--teal)]/20 text-[var(--teal)] flex items-center justify-center mb-6">
                 <Building size={24} />

@@ -27,10 +27,11 @@ export default function About() {
       )}
       <PageIntro 
         eyebrow="01 — ABOUT WISTA SINGAPORE" 
-        title={<>Women moving <em>maritime</em> forward.</>} 
+        title={<>WHO<br />WE<br /><em>ARE</em></>}
         lead="WISTA Singapore is a networking organization for women at the management level in the maritime, trading and logistics sectors."
         bgImage={aboutHeroBg}
         bgPosition="center 20%"
+        variant="curve-right"
       />
       <section className="route-section content-white space-y-12">
         <ScrollReveal>
@@ -81,5 +82,3 @@ export default function About() {
     </PageShell>
   )
 }
-
-

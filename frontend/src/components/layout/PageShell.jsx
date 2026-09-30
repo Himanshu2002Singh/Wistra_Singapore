@@ -4,8 +4,8 @@ import Footer from './Footer'
 
 export default function PageShell({ children, currentPage = 'GLOBAL NETWORK' }) {
   return (
-    <main>
-      <Header currentPage={currentPage} />
+    <main className="public-site">
+      <Header currentPage={currentPage} whiteLogo />
       {children}
       <Footer />
     </main>

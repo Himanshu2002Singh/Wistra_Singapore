@@ -24,41 +24,45 @@ export default function Events() {
       )}
       <PageIntro 
         eyebrow="03 — EVENTS &amp; FORUMS" 
-        title={<>Where <em>people</em><br />meet.</>} 
+        title={<>WHAT&apos;S<br /><em>HAPPENING</em></>}
         lead="From local networking evenings to industry panel discussions and international naval exchanges, WISTA Singapore events turn conversations into momentum."
         bgImage={eventsHeroBg}
         bgPosition="center 30%"
+        variant="image-left"
       />
       
       <section className="route-section content-white space-y-12">
         <ScrollReveal>
           <h2 className="mb-8">Featured &amp; Past <em>Gatherings.</em></h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {events.map((evt) => (
-              <div key={evt.id} className="group bg-[#f5f3ee] border border-[#0b1f33]/10 rounded-sm overflow-hidden flex flex-col hover:border-[#1b9aaa] transition-colors">
-                <div className="aspect-[16/9] overflow-hidden bg-[#0b1f33]/10">
+          <div className="event-editorial-list">
+            {events.map((evt, index) => (
+              <article key={evt.id} className={`event-editorial-card ${index === 0 ? 'event-editorial-card--featured' : ''}`}>
+                <div className="event-editorial-image">
                   <img 
                     src={evt.image} 
                     alt={evt.title} 
                     loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer"
+                    className="cursor-pointer"
                     onClick={() => setActiveLightbox({ src: evt.image, title: evt.title, caption: `${evt.type} — ${evt.location}` })}
                   />
                 </div>
-                <div className="p-5 flex flex-col justify-between flex-1 space-y-3">
+                <div className="event-editorial-copy">
                   <div>
-                    <div className="flex items-center justify-between text-[11px] font-bold tracking-wider text-[#1b9aaa] uppercase mb-1">
+                    <div className="event-editorial-meta">
                       <span>{evt.type}</span>
-                      <span>{evt.date}</span>
+                      <time className="event-editorial-date" dateTime={evt.date}>
+                        <span>{evt.date.slice(8, 10)}</span>
+                        <span>{new Date(`${evt.date}T00:00:00`).toLocaleDateString('en-SG', { month: 'short', year: 'numeric' })}</span>
+                      </time>
                     </div>
-                    <h3 className="text-lg font-bold font-display text-[#0b1f33] leading-snug">{evt.title}</h3>
-                    <p className="text-xs text-[#163d5a]/80 mt-2 line-clamp-2">{evt.description}</p>
+                    <h3>{evt.title}</h3>
+                    <p>{evt.description}</p>
                   </div>
-                  <p className="text-[11px] font-semibold text-[#0b1f33]/60 border-t border-[#0b1f33]/10 pt-3">
-                    📍 {evt.location}
+                  <p className="event-editorial-location">
+                    {evt.location}
                   </p>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         </ScrollReveal>
@@ -76,6 +80,3 @@ export default function Events() {
     </PageShell>
   )
 }
-
-
-

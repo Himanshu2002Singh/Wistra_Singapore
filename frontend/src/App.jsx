@@ -39,6 +39,7 @@ const AdminPayments = lazy(() => import('@/pages/admin/Payments'))
 const AdminCommunications = lazy(() => import('@/pages/admin/Communications'))
 const AdminReports = lazy(() => import('@/pages/admin/Reports'))
 const AdminUsers = lazy(() => import('@/pages/admin/Users'))
+const AdminAuditLogs = lazy(() => import('@/pages/admin/AuditLogs'))
 
 function Loading() {
   return (
@@ -82,7 +83,7 @@ export default function App() {
           <Route path="/register/individual" element={<RegisterIndividual />} />
           <Route path="/register/corporate" element={<RegisterCorporate />} />
 
-          {/* Member portal */}
+          {/* Temporary frontend preview: portal routes are intentionally public. */}
           <Route path="/member/dashboard" element={<MemberDashboard />} />
           <Route path="/member/profile" element={<MemberProfile />} />
           <Route path="/member/membership" element={<MemberMembership />} />
@@ -91,7 +92,6 @@ export default function App() {
           <Route path="/member/directory" element={<MemberDirectory />} />
           <Route path="/member/card" element={<MemberCard />} />
 
-          {/* Admin portal */}
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/applications" element={<AdminApplications />} />
@@ -101,6 +101,7 @@ export default function App() {
           <Route path="/admin/communications" element={<AdminCommunications />} />
           <Route path="/admin/reports" element={<AdminReports />} />
           <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
         </Routes>
       </Suspense>
     </AuthProvider>

@@ -23,37 +23,38 @@ export default function News() {
       )}
       <PageIntro 
         eyebrow="04 — NEWS & STORIES" 
-        title={<>Stories from<br />the <em>industry.</em></>} 
+        title={<>NEWS<br /><em>&amp; STORIES</em></>}
         lead="Ideas, perspectives and people shaping the future of maritime, trade and logistics in Singapore."
         bgImage={newsHeroBg}
         bgPosition="center 30%"
+        variant="framed"
       />
-      <section className="route-section content-white space-y-8">
+      <section className="route-section content-white news-editorial space-y-8">
         <ScrollReveal>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {news.map((item) => (
-              <article key={item.id} className="group bg-[#f5f3ee] border border-[#0b1f33]/10 rounded-sm overflow-hidden flex flex-col hover:border-[#1b9aaa] transition-colors">
-                <div className="aspect-[16/9] overflow-hidden bg-[#0b1f33]/10">
-                  <img 
-                    src={item.image} 
-                    alt={item.title} 
-                    loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer"
-                    onClick={() => setActiveLightbox({ src: item.image, title: item.title, caption: `${item.category} — ${item.author}` })}
-                  />
+          {news[0] && (
+            <article className="news-featured-story">
+              <div className="news-featured-image">
+                <img src={news[0].image} alt={news[0].title} onClick={() => setActiveLightbox({ src: news[0].image, title: news[0].title, caption: `${news[0].category} — ${news[0].author}` })} />
+              </div>
+              <div className="news-featured-copy">
+                <p className="eyebrow">{news[0].category} <span>·</span> {news[0].date}</p>
+                <h2>{news[0].title}</h2>
+                <p>{news[0].excerpt}</p>
+                <p className="news-byline">By {news[0].author}</p>
+              </div>
+            </article>
+          )}
+          <div className="news-secondary-stories">
+            {news.slice(1).map((item) => (
+              <article key={item.id} className="news-secondary-story">
+                <div className="news-secondary-image">
+                  <img src={item.image} alt={item.title} loading="lazy" onClick={() => setActiveLightbox({ src: item.image, title: item.title, caption: `${item.category} — ${item.author}` })} />
                 </div>
-                <div className="p-5 flex flex-col justify-between flex-1 space-y-3">
-                  <div>
-                    <div className="flex items-center justify-between text-[11px] font-bold tracking-wider text-[#1b9aaa] uppercase mb-1">
-                      <span>{item.category}</span>
-                      <span>{item.date}</span>
-                    </div>
-                    <h3 className="text-lg font-bold font-display text-[#0b1f33] leading-snug">{item.title}</h3>
-                    <p className="text-xs text-[#163d5a]/80 mt-2 leading-relaxed">{item.excerpt}</p>
-                  </div>
-                  <p className="text-[11px] font-semibold text-[#0b1f33]/60 border-t border-[#0b1f33]/10 pt-3">
-                    By {item.author}
-                  </p>
+                <div className="news-secondary-copy">
+                  <p className="eyebrow">{item.category} <span>·</span> {item.date}</p>
+                  <h3>{item.title}</h3>
+                  <p>{item.excerpt}</p>
+                  <p className="news-byline">By {item.author}</p>
                 </div>
               </article>
             ))}
@@ -63,6 +64,3 @@ export default function News() {
     </PageShell>
   )
 }
-
-
-

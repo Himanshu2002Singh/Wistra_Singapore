@@ -14,12 +14,18 @@ export default function Contact() {
         lead="Have a question about WISTA Singapore, membership or collaboration? We would love to hear from you."
         bgImage={contactHeroBg}
         bgPosition="center 30%"
+        variant="sweep"
       />
       <section className="route-section content-dark">
         <div className="contact-layout">
           <div>
             <h2>Start a<br /><em>conversation.</em></h2>
             <p className="page-lead">For general enquiries, partnerships and membership questions, send us a note.</p>
+            <address className="contact-office">
+              <span className="eyebrow">WISTA SINGAPORE OFFICE</span>
+              <span>8 Burn Road, #15-05 Trivex</span>
+              <span>Singapore 369977</span>
+            </address>
           </div>
           <form className="contact-form" onSubmit={(e) => { e.preventDefault(); alert('Message sent!'); }}>
             <label>
@@ -41,4 +47,3 @@ export default function Contact() {
     </PageShell>
   )
 }
-

@@ -66,39 +66,45 @@ export default function Committees() {
       )}
       <PageIntro 
         eyebrow="06 — COMMITTEES & LEADERSHIP" 
-        title={<>Expertise<br /><em>in action.</em></>} 
+        title={<>LEADERSHIP<br /><em>&amp; COMMUNITY</em></>}
         lead="Our executive leadership and specialized committees bring specialist knowledge together to create practical progress for our members and the maritime industry."
         bgImage={committeesHeroBg}
         bgPosition="center 30%"
+        variant="curve-right"
       />
       <section className="route-section content-white space-y-12">
         <ScrollReveal>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-            {committeeList.map((member) => (
-              <div 
-                key={member.id} 
-                className="bg-[#f5f3ee] border border-[#0b1f33]/10 p-6 rounded-sm flex flex-col sm:flex-row gap-6 items-start shadow-sm hover:border-[#1b9aaa]/50 transition-colors"
-              >
-                <div className="w-full sm:w-40 aspect-square rounded-sm overflow-hidden bg-[#0b1f33]/10 shrink-0">
-                  <img 
-                    src={member.photo} 
-                    alt={member.name} 
-                    loading="lazy"
-                    className="w-full h-full object-cover cursor-pointer"
-                    onClick={() => setActiveLightbox({ src: member.photo, title: member.name, caption: `${member.role} — ${member.company}` })}
-                  />
+          <div className="committee-editorial-list">
+            {committeeList[0] && (
+              <article className="committee-featured-profile">
+                <div className="committee-featured-image">
+                  <img src={committeeList[0].photo} alt={committeeList[0].name} onClick={() => setActiveLightbox({ src: committeeList[0].photo, title: committeeList[0].name, caption: `${committeeList[0].role} — ${committeeList[0].company}` })} />
                 </div>
-                <div className="space-y-2">
-                  <span className="inline-block px-2 py-0.5 bg-[#1b9aaa]/10 text-[#1b9aaa] text-[10px] font-bold tracking-widest uppercase rounded">
-                    {member.role}
-                  </span>
-                  <h3 className="text-xl font-bold font-display text-[#0b1f33]">{member.name}</h3>
-                  <p className="text-xs font-semibold text-[#163d5a]">{member.designation}</p>
-                  <p className="text-xs text-[#0b1f33]/70 font-medium">{member.company}</p>
-                  <p className="text-xs text-[#163d5a]/90 leading-relaxed mt-2">{member.bio}</p>
+                <div className="committee-profile-copy">
+                  <p className="eyebrow">{committeeList[0].role}</p>
+                  <h2>{committeeList[0].name}</h2>
+                  <p className="committee-designation">{committeeList[0].designation}</p>
+                  <p className="committee-company">{committeeList[0].company}</p>
+                  <p>{committeeList[0].bio}</p>
                 </div>
-              </div>
-            ))}
+              </article>
+            )}
+            <div className="committee-supporting-profiles">
+              {committeeList.slice(1).map((member) => (
+                <article key={member.id} className="committee-supporting-profile">
+                  <div className="committee-supporting-image">
+                    <img src={member.photo} alt={member.name} loading="lazy" onClick={() => setActiveLightbox({ src: member.photo, title: member.name, caption: `${member.role} — ${member.company}` })} />
+                  </div>
+                  <div className="committee-profile-copy">
+                    <p className="eyebrow">{member.role}</p>
+                    <h3>{member.name}</h3>
+                    <p className="committee-designation">{member.designation}</p>
+                    <p className="committee-company">{member.company}</p>
+                    <p>{member.bio}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         </ScrollReveal>
 
@@ -115,5 +121,3 @@ export default function Committees() {
     </PageShell>
   )
 }
-
-

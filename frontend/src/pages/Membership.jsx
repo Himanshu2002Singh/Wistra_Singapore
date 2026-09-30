@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
 import CardGrid from '@/components/editorial/CardGrid'
-import ArrowLink from '@/components/editorial/ArrowLink'
 import EditorialImage from '@/components/editorial/EditorialImage'
 import Lightbox from '@/components/ui/Lightbox'
 import WorkflowJourney from '@/components/ui/WorkflowJourney'
@@ -10,7 +10,6 @@ import ScrollReveal from '@/components/ui/ScrollReveal'
 
 // Exclusive Curated Images for Membership
 import membershipHeroBg from '../assets/images/wista/hero/membership-hero-bg.jpg'
-import membershipNetworking from '../assets/images/wista/membership/membership-networking.jpg'
 import membershipMentoring from '../assets/images/wista/membership/membership-mentoring.jpg'
 import membershipReception from '../assets/images/wista/membership/membership-reception.jpg'
 
@@ -28,11 +27,12 @@ export default function Membership() {
         />
       )}
       <PageIntro 
-        eyebrow="05 — MEMBERSHIP" 
-        title={<>Find your<br /><em>place.</em></>} 
+        eyebrow="02 — MEMBERSHIP"
+        title={<>JOIN<br /><em>WISTA</em></>}
         lead="Join a vibrant community of professionals who believe Singapore's maritime industry moves forward when everyone has a voice."
         bgImage={membershipHeroBg}
         bgPosition="center 30%"
+        variant="sweep"
       />
       
       <section className="route-section content-dark space-y-12">
@@ -46,22 +46,33 @@ export default function Membership() {
         </ScrollReveal>
 
         <ScrollReveal>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-10">
-            <EditorialImage 
-              src={membershipNetworking} 
-              alt="Active member networking" 
-              onClick={() => setActiveLightbox({ src: membershipNetworking, alt: 'Member Networking', caption: 'Active Member Networking — Year-End Gala' })}
-            />
-            <EditorialImage 
-              src={membershipMentoring} 
-              alt="Mentorship & Peer Discussion" 
-              onClick={() => setActiveLightbox({ src: membershipMentoring, alt: 'Mentorship Exchange', caption: 'Peer Exchange & Global Mentorship' })}
-            />
-            <EditorialImage 
-              src={membershipReception} 
-              alt="New Member Welcome Reception" 
-              onClick={() => setActiveLightbox({ src: membershipReception, alt: 'Welcome Reception', caption: 'Executive Reception & Member Welcome' })}
-            />
+          <div className="membership-paths">
+            <article className="membership-path">
+              <EditorialImage
+                src={membershipMentoring}
+                alt="WISTA members sharing a mentoring conversation"
+                onClick={() => setActiveLightbox({ src: membershipMentoring, alt: 'Mentorship Exchange', caption: 'Peer Exchange & Global Mentorship' })}
+              />
+              <div className="membership-path-copy">
+                <p className="eyebrow">INDIVIDUAL MEMBERSHIP</p>
+                <h3>For professionals</h3>
+                <p>For women working at management and executive levels across Singapore&apos;s maritime, trading, shipping and logistics sectors.</p>
+                <Link className="editorial-link" to="/register/individual">Explore individual membership <span aria-hidden="true">↗</span></Link>
+              </div>
+            </article>
+            <article className="membership-path membership-path--reverse">
+              <EditorialImage
+                src={membershipReception}
+                alt="WISTA Singapore members at a welcome reception"
+                onClick={() => setActiveLightbox({ src: membershipReception, alt: 'Welcome Reception', caption: 'Executive Reception & Member Welcome' })}
+              />
+              <div className="membership-path-copy">
+                <p className="eyebrow">CORPORATE MEMBERSHIP</p>
+                <h3>For organizations</h3>
+                <p>For companies in Singapore supporting gender diversity and empowering female leadership.</p>
+                <Link className="editorial-link" to="/register/corporate">Explore corporate membership <span aria-hidden="true">↗</span></Link>
+              </div>
+            </article>
           </div>
         </ScrollReveal>
 
@@ -69,14 +80,6 @@ export default function Membership() {
           <WorkflowJourney />
         </ScrollReveal>
 
-        <ScrollReveal delay={2}>
-          <div style={{ marginTop: 50 }}>
-            <ArrowLink href="https://forms.gle/29TduhWZyE4cf299A" external={true}>Apply for Individual Membership</ArrowLink>
-          </div>
-          <div style={{ marginTop: 20 }}>
-            <ArrowLink href="https://forms.gle/Zbm3H6tD4A8iYCvZA" external={true}>Apply for Corporate Membership</ArrowLink>
-          </div>
-        </ScrollReveal>
       </section>
     </PageShell>
   )

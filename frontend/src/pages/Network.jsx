@@ -25,14 +25,28 @@ export default function Network() {
         />
       )}
       <PageIntro 
-        eyebrow="02 — THE NETWORK" 
+        eyebrow="05 — THE NETWORK"
         title={<>One world.<br /><em>Many</em> voices.</>} 
         lead="Explore the companies, leaders and global associations that make WISTA Singapore a vibrant maritime community."
         bgImage={networkHeroBg}
         bgPosition="center 30%"
+        variant="network"
       />
       
-      <section className="route-section content-dark space-y-12">
+      <section className="route-section content-dark network-editorial space-y-12">
+        <ScrollReveal>
+          <div className="network-flow">
+            <div>
+              <p className="eyebrow">WISTA SINGAPORE</p>
+              <h2>Connected across <em>regions.</em></h2>
+            </div>
+            <ol className="network-flow-stages">
+              <li>SINGAPORE</li>
+              <li>ASIA</li>
+              <li>GLOBAL</li>
+            </ol>
+          </div>
+        </ScrollReveal>
         <ScrollReveal>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
             <EditorialImage 

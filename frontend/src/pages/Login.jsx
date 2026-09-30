@@ -4,6 +4,7 @@ import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
 import { ArrowUpRight, Lock, Mail, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import loginHeroBg from '../assets/images/wista/committees/committee-yukie-profile.jpg'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -55,10 +56,12 @@ export default function Login() {
         eyebrow="MEMBER ACCESS" 
         title={<>Sign in to your <em>portal.</em></>} 
         lead="Access your WISTA Singapore membership benefits, digital card, event registrations, and global directory."
+        bgImage={loginHeroBg}
+        variant="login"
       />
 
-      <section className="route-section content-dark py-16">
-        <div className="max-w-md mx-auto bg-white/5 border border-white/10 p-8 md:p-12 rounded-lg">
+      <section className="route-section login-section py-16">
+        <div className="public-login-panel max-w-md mx-auto bg-white border border-[#d9dee3] p-8 md:p-12">
           {errorMessage && (
             <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded text-red-200 text-xs font-semibold flex items-center gap-2">
               <AlertCircle size={16} className="text-red-400 shrink-0" />

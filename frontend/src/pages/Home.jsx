@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight, ArrowRight, UserRound, Building2 } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import Eyebrow from '@/components/editorial/Eyebrow'
@@ -8,6 +8,7 @@ import ArrowLink from '@/components/editorial/ArrowLink'
 import EditorialImage from '@/components/editorial/EditorialImage'
 import ScrollReveal from '@/components/ui/ScrollReveal'
 import Lightbox from '@/components/ui/Lightbox'
+import socialLinks from '@/config/socialLinks'
 
 // Exclusive Curated WISTA Image Imports for Home
 import homeHeroBg from '../assets/images/wista/hero/wista-ssa-41st-anniversary-gala.jpg'
@@ -32,88 +33,95 @@ const principles = [
   ['05', 'EXPERT COMMITTEES', 'A collective voice for the future of maritime in Singapore.'],
 ]
 
+function SocialIcon({ platform }) {
+  if (platform === 'instagram') {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><path fillRule="evenodd" d="M7.5 2h9A5.5 5.5 0 0 1 22 7.5v9a5.5 5.5 0 0 1-5.5 5.5h-9A5.5 5.5 0 0 1 2 16.5v-9A5.5 5.5 0 0 1 7.5 2Zm0 2A3.5 3.5 0 0 0 4 7.5v9A3.5 3.5 0 0 0 7.5 20h9a3.5 3.5 0 0 0 3.5-3.5v-9A3.5 3.5 0 0 0 16.5 4h-9Z" /><path fillRule="evenodd" d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z" /><circle cx="17.5" cy="6.5" r="1.25" /></svg>
+  }
+  if (platform === 'linkedin') {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h3v10H5zM6.5 5a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5ZM11 9h2.9v1.4h.05A3.2 3.2 0 0 1 16.8 8.8c3.1 0 3.7 2 3.7 4.6V19h-3v-5c0-1.2 0-2.7-1.7-2.7s-2 1.3-2 2.6V19h-3z" /></svg>
+  }
+  if (platform === 'facebook') {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.4 21v-8h2.7l.4-3.1h-3.1v-2c0-.9.3-1.5 1.6-1.5h1.7V3.6c-.3 0-1.3-.1-2.4-.1-2.4 0-4.1 1.5-4.1 4.2v2.3H7.5v3.1h2.7v8z" /></svg>
+  }
+  if (platform === 'youtube') {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 7.1a3 3 0 0 0-2.1-2.2C19 4.4 12 4.4 12 4.4s-7 0-8.9.5A3 3 0 0 0 1 7.1a31 31 0 0 0-.5 4.9 31 31 0 0 0 .5 4.9 3 3 0 0 0 2.1 2.2c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.2 31 31 0 0 0 .5-4.9 31 31 0 0 0-.5-4.9ZM9.7 15.5v-7l6.1 3.5z" /></svg>
+  }
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3L12 14.8 5.8 22H2.6l7.3-8.4L1 2h6.5l4.5 6.7zm-1.1 18h1.7L6.5 3.9H4.7z" /></svg>
+}
+
 function HeroMotion() {
-  const heroRef = useRef(null)
-  useEffect(() => {
-    const hero = heroRef.current
-    if (!hero || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    let frame = 0
-    const move = (event) => {
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => {
-        hero.style.setProperty('--parallax-x', `${(event.clientX / window.innerWidth - 0.5) * -18}px`)
-        hero.style.setProperty('--parallax-y', `${(event.clientY / window.innerHeight - 0.5) * -12}px`)
-      })
-    }
-    window.addEventListener('mousemove', move, { passive: true })
-    return () => {
-      cancelAnimationFrame(frame)
-      window.removeEventListener('mousemove', move)
-    }
-  }, [])
-
   return (
-    <section ref={heroRef} className="editorial-hero cinematic-hero relative overflow-hidden bg-[#0b1f33]">
-      <div 
-        className="absolute inset-0 bg-cover scale-105 pointer-events-none transition-transform duration-1000"
-        style={{ backgroundImage: `url(${homeHeroBg})`, backgroundPosition: 'center 30%' }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0b1f33]/80 via-[#0b1f33]/55 to-[#0b1f33]/20 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f33]/80 via-transparent to-transparent pointer-events-none" />
-      <div className="hero-copy relative z-10">
-
-        <Eyebrow>PEOPLE · OPPORTUNITIES · COLLABORATION</Eyebrow>
-        <h1>
-          <span className="reveal-line">WOMEN</span>
-          <span className="reveal-line offset">MOVING</span>
-          <span className="reveal-line teal">MARITIME</span>
-          <span className="reveal-line">FORWARD.</span>
-        </h1>
-        <p>Connecting women across Singapore's maritime, trading and logistics sectors.</p>
-        <div className="hero-actions">
-          <ArrowLink href="/membership">Join WISTA</ArrowLink>
-          <ArrowLink href="/network">Explore our network</ArrowLink>
+    <section className="homepage-hero" aria-label="WISTA Singapore introduction">
+      <div className="homepage-hero-image">
+        <div className="homepage-hero-photo-frame">
+          <img className="homepage-hero-photo" src={homeHeroBg} alt="WISTA Singapore members gathered at the Singapore Shipping Association anniversary gala" fetchPriority="high" />
         </div>
       </div>
-      <div className="hero-message relative z-10">
-        Stronger Together<br />
-        <em>Across Oceans</em>
-        <span className="block text-[8px] font-sans tracking-[0.2em] text-[#8cd4d3] mt-2 font-normal">
-          SINGAPORE 01°17′N 103°50′E
-        </span>
+      <svg className="homepage-hero-definitions" aria-hidden="true" focusable="false">
+        <defs>
+          <clipPath id="homepage-hero-photo-clip" clipPathUnits="objectBoundingBox">
+            <path d="M.41 0 C.397 .16 .38 .34 .36 .50 C.344 .66 .356 .84 .39 1 H1 V0 Z" />
+          </clipPath>
+        </defs>
+      </svg>
+      <div className="homepage-hero-panel">
+        <svg className="homepage-hero-waves" viewBox="0 0 700 220" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M-25 157 C95 104 180 200 304 155 S520 106 730 158" />
+          <path d="M-25 180 C110 128 196 217 326 179 S536 133 730 184" />
+          <path d="M-25 204 C115 157 208 237 338 202 S551 157 730 209" />
+        </svg>
+        <div className="homepage-hero-copy">
+          <p className="homepage-hero-eyebrow">PEOPLE <span>•</span> OPPORTUNITIES <span>•</span> COLLABORATION</p>
+          <h1>
+            <span>WOMEN</span>
+            <span>MOVING</span>
+            <span className="homepage-hero-teal">MARITIME</span>
+            <span>FORWARD.</span>
+          </h1>
+          <p className="homepage-hero-lead">Connecting women across Singapore&apos;s<br className="homepage-hero-copy-break" /> maritime, trading and logistics sectors.</p>
+          <div className="homepage-hero-actions">
+            <Link className="homepage-hero-cta" to="/membership">
+              JOIN WISTA <ArrowRight size={17} aria-hidden="true" />
+            </Link>
+            <Link className="homepage-hero-network-link" to="/network">
+              EXPLORE OUR NETWORK <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          </div>
+          <nav className="homepage-hero-memberships" aria-label="Membership applications">
+            <Link to="/register/individual" className="homepage-membership-link">
+              <UserRound size={19} strokeWidth={1.5} aria-hidden="true" />
+              <span><strong>INDIVIDUAL</strong><span>MEMBERSHIP</span></span>
+            </Link>
+            <Link to="/register/corporate" className="homepage-membership-link">
+              <Building2 size={19} strokeWidth={1.5} aria-hidden="true" />
+              <span><strong>CORPORATE</strong><span>MEMBERSHIP</span></span>
+            </Link>
+          </nav>
+        </div>
       </div>
-      <div className="hero-stats relative z-10">
-        <div>
-          <strong>200<span>+</span></strong>
-          <small>MEMBERS<br />IN SINGAPORE</small>
-        </div>
-        <div>
-          <strong>60<span>+</span></strong>
-          <small>NATIONAL<br />ASSOCIATIONS</small>
-        </div>
-        <div>
-          <strong>2006</strong>
-          <small>SINGAPORE<br />CHAPTER EST.</small>
-        </div>
-        <div>
-          <strong>GLOBAL</strong>
-          <small>MARITIME<br />NETWORK</small>
-        </div>
+      <div className="homepage-hero-socials" role="group" aria-label="WISTA Singapore social media">
+        {socialLinks.map(({ platform, label, url }) => {
+          const icon = <SocialIcon platform={platform} />
+          return url ? (
+            <a key={platform} href={url} target="_blank" rel="noopener noreferrer" aria-label={label}>
+              {icon}
+            </a>
+          ) : (
+            <span key={platform} className="homepage-hero-social-unconfigured" role="img" aria-label={`${label}; link not configured`}>
+              {icon}
+            </span>
+          )
+        })}
       </div>
     </section>
   )
 }
-
 export default function Home() {
   const [activePrinciple, setActivePrinciple] = useState(0)
   const [activeLightbox, setActiveLightbox] = useState(null)
 
   return (
     <main>
-      <Header 
-        cinematic={true} 
-        currentPage="HOME" 
-      />
       {activeLightbox && (
         <Lightbox 
           src={activeLightbox.src} 
@@ -123,7 +131,10 @@ export default function Home() {
         />
       )}
 
-      <HeroMotion />
+      <div className="homepage-hero-shell">
+        <Header cinematic={true} whiteLogo currentPage="HOME" />
+        <HeroMotion />
+      </div>
 
       <ScrollReveal>
         <section className="statement section-pad editorial-about">

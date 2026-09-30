@@ -1,28 +1,22 @@
 import React from 'react'
 
-export default function PageIntro({ eyebrow, title, lead, bgImage, bgPosition = 'center' }) {
+export default function PageIntro({ eyebrow, title, lead, bgImage, bgPosition = 'center', variant = 'curve-right' }) {
   return (
-    <section className="page-intro section-pad relative overflow-hidden bg-[#0b1f33] text-white">
+    <section className={`page-intro editorial-page-hero editorial-page-hero--${variant} ${bgImage ? 'has-image' : ''}`}>
       {bgImage && (
-        <>
-          <div 
-            className="absolute inset-0 bg-cover scale-105 pointer-events-none transition-all duration-700"
-            style={{ backgroundImage: `url(${bgImage})`, backgroundPosition: bgPosition }}
-          />
-          {/* Subtle gradient overlays for text legibility while preserving full original image color */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0b1f33]/80 via-[#0b1f33]/55 to-[#0b1f33]/20 pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0b1f33]/80 via-transparent to-transparent pointer-events-none" />
-        </>
+        <div className="page-hero-image" aria-hidden="true">
+          <img src={bgImage} alt="" style={{ objectPosition: bgPosition }} />
+        </div>
       )}
-      <div className="relative z-10">
-        <p className="eyebrow text-[#ff856f]">
+      <div className="page-hero-copy">
+        <p className="eyebrow">
           <i />{eyebrow}
         </p>
-        <h1 className="text-white drop-shadow-md">{title}</h1>
-        <p className="page-lead text-[#e1ebed] drop-shadow">{lead}</p>
+        <h1>{title}</h1>
+        <p className="page-lead">{lead}</p>
       </div>
+      <span className="page-hero-rule" aria-hidden="true" />
     </section>
   )
 }
-
 

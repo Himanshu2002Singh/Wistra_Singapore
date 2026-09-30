@@ -1,87 +1,75 @@
-import React, { useState } from 'react';
-import { NavLink, Link, Outlet } from 'react-router-dom';
-import { LayoutDashboard, FileText, Users, Calendar, Wallet, MessageSquare, BarChart3, Shield, LogOut, Menu, X, ArrowLeft } from 'lucide-react';
+import React, { useState } from 'react'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { ArrowLeft, BarChart3, Bell, CalendarDays, ChevronDown, FileText, LayoutDashboard, LogOut, Menu, MessageSquare, ShieldCheck, Users, WalletCards, X } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 
-const AdminLayout = ({ children }) => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+const navigation = [
+  { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/admin/applications', label: 'Applications', icon: FileText },
+  { to: '/admin/members', label: 'Members', icon: Users },
+  { to: '/admin/payments', label: 'Payments', icon: WalletCards },
+  { to: '/admin/events', label: 'Events', icon: CalendarDays },
+  { to: '/admin/communications', label: 'Communications', icon: MessageSquare },
+  { to: '/admin/reports', label: 'Reports', icon: BarChart3 },
+  { to: '/admin/users', label: 'Users & Roles', icon: ShieldCheck },
+  { to: '/admin/audit-logs', label: 'Audit Logs', icon: ShieldCheck },
+]
 
-  const toggleMenu = () => setMobileMenuOpen(!mobileMenuOpen);
+const pageNames = {
+  '/admin': 'Dashboard', '/admin/dashboard': 'Dashboard', '/admin/applications': 'Applications',
+  '/admin/members': 'Members', '/admin/payments': 'Payments', '/admin/events': 'Events',
+  '/admin/communications': 'Communications', '/admin/reports': 'Reports', '/admin/users': 'Users & Roles', '/admin/audit-logs': 'Audit Logs',
+}
+
+export default function AdminLayout({ children }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [notificationOpen, setNotificationOpen] = useState(false)
+  const { user, logout } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const displayName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email : 'Administrator'
+  const initials = user?.first_name ? `${user.first_name[0]}${user.last_name?.[0] || ''}`.toUpperCase() : 'AD'
+  const role = user?.role?.name || user?.role || 'ADMINISTRATOR'
+
+  const handleLogout = async () => { await logout(); navigate('/login') }
+  const closeMobileMenu = () => setMobileMenuOpen(false)
 
   return (
-    <div className="portal-layout flex h-screen bg-ivory overflow-hidden">
-      {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-line w-full fixed top-0 z-20">
-        <img src="/wista-logo.svg" alt="WISTA Singapore" className="h-8" />
-        <button onClick={toggleMenu} className="p-2 text-ink">
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-      </div>
-
-      {/* Sidebar */}
-      <aside className={`portal-sidebar fixed inset-y-0 left-0 z-10 w-64 bg-ink transform transition-transform duration-300 ease-in-out md:translate-x-0 ${mobileMenuOpen ? 'translate-x-0 pt-16 md:pt-0' : '-translate-x-full'} flex flex-col h-full`}>
-        <div className="p-6 hidden md:block border-b border-white/10">
-          <img src="/wista-logo.svg" alt="WISTA Singapore" className="h-10 brightness-0 invert" />
-          <div className="mt-4 flex items-center gap-2">
-            <Shield size={16} className="text-teal" />
-            <span className="text-xs font-medium text-white/70 uppercase tracking-wider">Super Admin</span>
+    <div className="wista-admin-shell">
+      <header className="admin-global-header">
+        <div className="admin-header-brand">
+          <Link to="/" aria-label="Go to WISTA Singapore public website" className="admin-logo-link"><img src="/wista-logo-singapore-white.svg" alt="WISTA Singapore" /></Link>
+          <span className="admin-header-rule" />
+          <div className="admin-header-context"><span>Admin Portal</span><span className="admin-context-divider">/</span><strong>{pageNames[location.pathname] || 'Dashboard'}</strong></div>
+        </div>
+        <div className="admin-header-actions">
+          <div className="admin-notification-wrap"><button className="admin-notification" type="button" onClick={() => setNotificationOpen((isOpen) => !isOpen)} aria-expanded={notificationOpen} aria-label="Show sample notifications"><Bell size={18} aria-hidden="true" /><span aria-hidden="true" /></button>{notificationOpen && <div className="admin-notification-popover"><strong>Sample notifications</strong><p>15 applications are awaiting review.</p><p>Payment activity is available in the sample Payments area.</p></div>}</div>
+          <div className="admin-role-status"><i /> {role.replaceAll('_', ' ')}</div>
+          <div className="admin-user-menu">
+            <button type="button" className="admin-user-trigger" onClick={() => setProfileOpen((isOpen) => !isOpen)} aria-expanded={profileOpen} aria-label="Open administrator menu">
+              <span className="admin-avatar">{initials}</span><span className="admin-user-name">{displayName}</span><ChevronDown size={15} aria-hidden="true" />
+            </button>
+            {profileOpen && <div className="admin-profile-popover"><p>{displayName}</p><span>{role.replaceAll('_', ' ')}</span><button type="button" onClick={handleLogout}><LogOut size={14} /> Sign out</button></div>}
           </div>
+          <button type="button" className="admin-mobile-toggle" onClick={() => setMobileMenuOpen((isOpen) => !isOpen)} aria-expanded={mobileMenuOpen} aria-label="Toggle admin navigation">{mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}</button>
         </div>
+      </header>
 
-        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-          <NavLink to="/admin/dashboard" onClick={() => setMobileMenuOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-md transition-colors ${isActive ? 'bg-blue text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
-            <LayoutDashboard size={20} />
-            <span>Dashboard</span>
-          </NavLink>
-          <NavLink to="/admin/applications" onClick={() => setMobileMenuOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-md transition-colors ${isActive ? 'bg-blue text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
-            <FileText size={20} />
-            <span>Applications</span>
-          </NavLink>
-          <NavLink to="/admin/members" onClick={() => setMobileMenuOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-md transition-colors ${isActive ? 'bg-blue text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
-            <Users size={20} />
-            <span>Members</span>
-          </NavLink>
-          <NavLink to="/admin/events" onClick={() => setMobileMenuOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-md transition-colors ${isActive ? 'bg-blue text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
-            <Calendar size={20} />
-            <span>Events</span>
-          </NavLink>
-          <NavLink to="/admin/payments" onClick={() => setMobileMenuOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-md transition-colors ${isActive ? 'bg-blue text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
-            <Wallet size={20} />
-            <span>Payments</span>
-          </NavLink>
-          <NavLink to="/admin/communications" onClick={() => setMobileMenuOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-md transition-colors ${isActive ? 'bg-blue text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
-            <MessageSquare size={20} />
-            <span>Communications</span>
-          </NavLink>
-          <NavLink to="/admin/reports" onClick={() => setMobileMenuOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-md transition-colors ${isActive ? 'bg-blue text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
-            <BarChart3 size={20} />
-            <span>Reports</span>
-          </NavLink>
-          <NavLink to="/admin/users" onClick={() => setMobileMenuOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-md transition-colors ${isActive ? 'bg-blue text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
-            <Shield size={20} />
-            <span>Admin Users</span>
-          </NavLink>
-        </nav>
-
-        <div className="p-4 border-t border-white/10 space-y-2">
-          <Link to="/" className="flex items-center gap-3 px-4 py-2 text-sm text-white/50 hover:text-white transition-colors">
-            <ArrowLeft size={16} />
-            View Public Site
-          </Link>
-          <button className="flex items-center gap-3 px-4 py-2 w-full text-left text-coral hover:bg-coral/10 rounded-md transition-colors">
-            <LogOut size={20} />
-            <span>Logout</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="portal-content flex-1 ml-0 md:ml-64 pt-16 md:pt-0 h-full overflow-y-auto bg-ivory">
-        <div className="max-w-7xl mx-auto p-4 md:p-8">
-          {children ? children : <Outlet />}
-        </div>
-      </main>
+      <div className="admin-shell-body">
+        <aside className={`admin-sidebar ${mobileMenuOpen ? 'is-open' : ''}`} aria-label="Admin navigation">
+          <nav className="admin-navigation">
+            <p className="admin-nav-label">Operations</p>
+            {navigation.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} onClick={closeMobileMenu} className={({ isActive }) => `admin-nav-link${isActive ? ' is-active' : ''}`}><Icon size={18} aria-hidden="true" /><span>{label}</span></NavLink>)}
+          </nav>
+          <div className="admin-sidebar-bottom">
+            <Link to="/" className="admin-nav-link"><ArrowLeft size={17} aria-hidden="true" /><span>Public Website</span></Link>
+            <button type="button" className="admin-nav-link admin-signout" onClick={handleLogout}><LogOut size={17} aria-hidden="true" /><span>Sign Out</span></button>
+          </div>
+        </aside>
+        {mobileMenuOpen && <button className="admin-nav-scrim" aria-label="Close admin navigation" onClick={closeMobileMenu} />}
+        <main className="admin-main-content">{children || <Outlet />}</main>
+      </div>
     </div>
-  );
-};
-
-export default AdminLayout;
+  )
+}
