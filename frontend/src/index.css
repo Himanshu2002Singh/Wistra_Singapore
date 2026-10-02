@@ -922,7 +922,6 @@ button { border: 0; background: none; color: inherit; cursor: pointer }
 .homepage-hero-shell > .cinematic-header .auth-nav-link { color: #fff; }
 .homepage-hero-shell > .cinematic-header .login-link { border-color: rgba(255,255,255,.6); }
 .homepage-hero-shell > .cinematic-header .register-btn { background: #f35d5d; border-color: #f35d5d; }
-.homepage-hero-shell > .cinematic-header .header-search-icon { display: inline-flex; align-items: center; justify-content: center; color: #fff; }
 @media (min-width: 901px) {
   .homepage-hero-shell > .cinematic-header .header-center { display: flex !important; }
   .homepage-hero-shell > .cinematic-header .mobile-nav-toggle,
@@ -979,7 +978,6 @@ button { border: 0; background: none; color: inherit; cursor: pointer }
 @media (max-width: 900px) {
   .homepage-hero-shell > .cinematic-header { position: relative; inset: auto; display: flex; justify-content: space-between; width: 100%; height: 70px; min-height: 70px; padding: 6px 5vw; gap: 8px; background: #0f2d52; }
   .homepage-hero-shell > .cinematic-header .brand img { height: 48px; }
-  .homepage-hero-shell > .cinematic-header .header-search-icon { display: none; }
   .homepage-hero-shell > .cinematic-header .header-right { margin-left: auto; }
   .homepage-hero { display: flex; flex-direction: column; height: auto; min-height: 0; overflow: visible; }
   .homepage-hero-image { position: relative; inset: auto; order: 1; flex: none; width: 100%; height: clamp(240px, 54vw, 390px); }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { User, UserPlus, Menu, X, LogOut, LayoutDashboard, Search, ArrowUpRight } from 'lucide-react'
+import { User, UserPlus, Menu, X, LogOut, LayoutDashboard, ArrowUpRight } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 
 const navLinks = [
@@ -82,7 +82,6 @@ export default function Header({ cinematic = false, lightBg = false, whiteLogo =
 
       {/* RIGHT: LOGIN & REGISTER / AUTHENTICATED ACTIONS */}
       <div className="header-right flex items-center gap-1.5 sm:gap-2.5">
-        {cinematic && <span className="header-search-icon" aria-hidden="true"><Search size={17} strokeWidth={1.7} /></span>}
         {isAuthenticated ? (
           <>
             <Link
