@@ -7,7 +7,7 @@ import Lightbox from '@/components/ui/Lightbox'
 import ScrollReveal from '@/components/ui/ScrollReveal'
 
 // Exclusive Curated Images for Network
-import networkHeroBg from '../assets/images/wista/hero/network-hero-bg.jpg'
+import networkHeroBg from '../assets/images/wista/client-provided/wista-member-network.jpg'
 import networkMaritime1 from '../assets/images/wista/network/network-maritime-1.jpg'
 import networkMaritime2 from '../assets/images/wista/network/network-maritime-2.jpg'
 
@@ -33,18 +33,13 @@ export default function Network() {
         variant="network"
       />
       
-      <section className="route-section content-dark network-editorial space-y-12">
+      <section className="route-section content-white network-editorial space-y-12">
         <ScrollReveal>
           <div className="network-flow">
             <div>
-              <p className="eyebrow">WISTA SINGAPORE</p>
-              <h2>Connected across <em>regions.</em></h2>
+              <p className="eyebrow">OUR COMMUNITY</p>
+              <h2>A network rooted in <em>Singapore.</em></h2>
             </div>
-            <ol className="network-flow-stages">
-              <li>SINGAPORE</li>
-              <li>ASIA</li>
-              <li>GLOBAL</li>
-            </ol>
           </div>
         </ScrollReveal>
         <ScrollReveal>
@@ -81,5 +76,3 @@ export default function Network() {
     </PageShell>
   )
 }
-
-

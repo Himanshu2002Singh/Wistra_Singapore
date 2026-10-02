@@ -145,7 +145,7 @@ export default function Home() {
             onClick={() => setActiveLightbox({ src: homeWelcome, alt: 'President Yukie Teo Stage Keynote', caption: 'Yukie Teo — President, WISTA Singapore delivering keynote speech' })}
           />
           <div className="statement-big">
-            Singapore's network<br />connecting <em>women</em><br />across maritime<br />and trade.
+            Singapore&apos;s network connecting <em>women</em> across maritime and trade.
             <small>WISTA SINGAPORE<br />Led by President Yukie Teo &amp; Executive Committee.</small>
           </div>
           <div className="statement-side">

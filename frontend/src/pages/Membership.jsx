@@ -2,14 +2,15 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
-import CardGrid from '@/components/editorial/CardGrid'
 import EditorialImage from '@/components/editorial/EditorialImage'
 import Lightbox from '@/components/ui/Lightbox'
 import WorkflowJourney from '@/components/ui/WorkflowJourney'
 import ScrollReveal from '@/components/ui/ScrollReveal'
 
 // Exclusive Curated Images for Membership
-import membershipHeroBg from '../assets/images/wista/hero/membership-hero-bg.jpg'
+import membershipHeroBg from '../assets/images/wista/client-provided/wista-member-group-close.jpg'
+import membershipCommunity from '../assets/images/wista/client-provided/wista-membership-community-visit.jpg'
+import membershipCorporate from '../assets/images/wista/client-provided/wista-corporate-membership.jpeg'
 import membershipMentoring from '../assets/images/wista/membership/membership-mentoring.jpg'
 import membershipReception from '../assets/images/wista/membership/membership-reception.jpg'
 
@@ -35,16 +36,44 @@ export default function Membership() {
         variant="sweep"
       />
       
-      <section className="route-section content-dark space-y-12">
+      <section className="route-section content-white membership-editorial">
         <ScrollReveal>
-          <h2>More than a<br /><em>membership.</em></h2>
-          <CardGrid items={[
-            ["CONNECT", "Build meaningful relationships across companies and maritime sectors in Singapore."],
-            ["GROW", "Learn through mentorship, workshops, and shared industry expertise."],
-            ["LEAD", "Shape a more inclusive future for women in maritime."]
-          ]} />
+          <div className="membership-story">
+            <div className="membership-story-copy">
+              <h2>More than a<br /><em>membership.</em></h2>
+              <div className="membership-chapters">
+                {[
+                  ["CONNECT", "Build meaningful relationships across companies and maritime sectors in Singapore."],
+                  ["GROW", "Learn through mentorship, workshops, and shared industry expertise."],
+                  ["LEAD", "Shape a more inclusive future for women in maritime."]
+                ].map(([title, text], index) => (
+                  <article className="membership-chapter" key={title}>
+                    <span className="membership-chapter-number">0{index + 1}</span>
+                    <div>
+                      <h3>{title}</h3>
+                      <p>{text}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+            <EditorialImage
+              src={membershipCommunity}
+              alt="WISTA Singapore members at a community gathering"
+              className="membership-community-image"
+              onClick={() => setActiveLightbox({ src: membershipCommunity, alt: 'WISTA Singapore members at a community gathering', caption: 'WISTA Singapore Member Community' })}
+            />
+          </div>
         </ScrollReveal>
+      </section>
 
+      <section className="membership-journey-section content-white">
+        <ScrollReveal delay={1}>
+          <WorkflowJourney />
+        </ScrollReveal>
+      </section>
+
+      <section className="route-section content-white membership-options-section space-y-12">
         <ScrollReveal>
           <div className="membership-paths">
             <article className="membership-path">
@@ -62,9 +91,9 @@ export default function Membership() {
             </article>
             <article className="membership-path membership-path--reverse">
               <EditorialImage
-                src={membershipReception}
-                alt="WISTA Singapore members at a welcome reception"
-                onClick={() => setActiveLightbox({ src: membershipReception, alt: 'Welcome Reception', caption: 'Executive Reception & Member Welcome' })}
+                src={membershipCorporate}
+                alt="WISTA Singapore member welcoming visitors at a corporate event"
+                onClick={() => setActiveLightbox({ src: membershipCorporate, alt: 'WISTA Singapore member welcoming visitors at a corporate event', caption: 'Corporate Membership & Industry Connections' })}
               />
               <div className="membership-path-copy">
                 <p className="eyebrow">CORPORATE MEMBERSHIP</p>
@@ -76,13 +105,7 @@ export default function Membership() {
           </div>
         </ScrollReveal>
 
-        <ScrollReveal delay={1}>
-          <WorkflowJourney />
-        </ScrollReveal>
-
       </section>
     </PageShell>
   )
 }
-
-

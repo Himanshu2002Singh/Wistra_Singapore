@@ -12,27 +12,30 @@ export default function WorkflowJourney() {
   const [activeStep, setActiveStep] = useState(0)
 
   return (
-    <div className="workflow-journey-wrapper my-12">
-      <h3 className="text-[11px] font-bold tracking-[.18em] uppercase text-[var(--coral)] mb-2">
-        MEMBER JOURNEY
-      </h3>
-      <h4 className="font-[var(--serif)] text-3xl text-white mb-6">
-        How membership works.
-      </h4>
-      <div className="workflow-journey">
-        {steps.map((s, idx) => (
-          <div 
-            key={s.num} 
-            className={`workflow-step ${activeStep === idx ? 'active' : ''}`}
-            onClick={() => setActiveStep(idx)}
-            onMouseEnter={() => setActiveStep(idx)}
-          >
-            <div className="workflow-step-num">{s.num}</div>
-            <div className="workflow-step-title">{s.title}</div>
-            <div className="workflow-step-desc">{s.desc}</div>
-          </div>
-        ))}
+    <div className="workflow-journey-wrapper">
+      <div className="workflow-journey-heading">
+        <p className="workflow-journey-label">MEMBER JOURNEY</p>
+        <h2>How membership works.</h2>
       </div>
+      <ol className="workflow-journey">
+        {steps.map((s, idx) => (
+          <li key={s.num}>
+            <button
+              type="button"
+              className={`workflow-step ${activeStep === idx ? 'active' : ''}`}
+              aria-pressed={activeStep === idx}
+              onClick={() => setActiveStep(idx)}
+              onMouseEnter={() => setActiveStep(idx)}
+              onFocus={() => setActiveStep(idx)}
+            >
+              <span className="workflow-step-node" aria-hidden="true" />
+              <span className="workflow-step-num">{s.num}</span>
+              <span className="workflow-step-title">{s.title}</span>
+              <span className="workflow-step-desc">{s.desc}</span>
+            </button>
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }

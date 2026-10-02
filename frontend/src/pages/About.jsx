@@ -1,16 +1,15 @@
 import React, { useState } from 'react'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
-import CardGrid from '@/components/editorial/CardGrid'
 import EditorialImage from '@/components/editorial/EditorialImage'
+import ArrowLink from '@/components/editorial/ArrowLink'
 import Lightbox from '@/components/ui/Lightbox'
 import ScrollReveal from '@/components/ui/ScrollReveal'
 
 // Exclusive Curated Images for About
-import aboutHeroBg from '../assets/images/wista/hero/about-hero-bg.jpg'
-import aboutPresidentQuote from '../assets/images/wista/about/about-president-quote.jpg'
-import aboutStory from '../assets/images/wista/about/about-story.jpg'
-import aboutOperations from '../assets/images/wista/about/about-operations.jpg'
+import aboutHeroBg from '../assets/images/wista/client-provided/wista-leadership-group.jpg'
+import aboutPresidentQuote from '../assets/images/wista/client-provided/wista-president-yukie-teo.png'
+import aboutCommunity from '../assets/images/wista/client-provided/wista-community-gathering.jpg'
 
 export default function About() {
   const [activeLightbox, setActiveLightbox] = useState(null)
@@ -33,52 +32,63 @@ export default function About() {
         bgPosition="center 20%"
         variant="curve-right"
       />
-      <section className="route-section content-white space-y-12">
+      <section className="about-message-section content-white">
         <ScrollReveal>
-          <h2>A network built on <em>connection.</em></h2>
-          <CardGrid items={[
-            ["OUR PURPOSE", "We create a place for women to connect, learn and lead across Singapore's maritime world."],
-            ["OUR MISSION", "Empowering women through networking, education and advocacy in Singapore's shipping, trading and logistics ecosystem."],
-            ["OUR FUTURE", "We work toward a more diverse, inclusive and resilient maritime industry for generations to come."]
-          ]} />
-        </ScrollReveal>
-
-        <ScrollReveal>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center my-12 pt-8 border-t border-[#0b1f33]/10">
-            <EditorialImage 
-              src={aboutPresidentQuote} 
-              alt="President Yukie Teo portrait" 
-              className="rounded-sm shadow-md"
+          <div className="about-message-layout">
+            <EditorialImage
+              src={aboutPresidentQuote}
+              alt="President Yukie Teo portrait"
+              className="about-president-portrait"
               onClick={() => setActiveLightbox({ src: aboutPresidentQuote, alt: 'President Yukie Teo', caption: 'Yukie Teo — President, WISTA Singapore' })}
             />
-            <div className="space-y-4">
-              <p className="eyebrow text-[#1b9aaa]">LEADERSHIP &amp; VISION</p>
-              <h3 className="text-2xl md:text-3xl font-bold text-[#0b1f33] font-display">President's Message</h3>
-              <p className="text-[#163d5a] text-sm md:text-base leading-relaxed">
-                "WISTA Singapore provides a vital platform for professional women across shipping, commodity trading, and port operations. Our mission is to amplify female voices, foster executive mentorship, and drive sustainability standardisation across maritime supply chains."
-              </p>
-              <p className="text-xs font-semibold tracking-wider text-[#0b1f33]">
-                YUKIE TEO — PRESIDENT, WISTA SINGAPORE
-              </p>
+            <div className="about-message-copy">
+              <p className="eyebrow">LEADERSHIP &amp; VISION</p>
+              <h2>President&apos;s Message</h2>
+              <blockquote>
+                <p>"WISTA Singapore provides a vital platform for professional women across shipping, commodity trading, and port operations. Our mission is to amplify female voices, foster executive mentorship, and drive sustainability standardisation across maritime supply chains."</p>
+              </blockquote>
+              <p className="about-president-name">YUKIE TEO — PRESIDENT, WISTA SINGAPORE</p>
             </div>
           </div>
         </ScrollReveal>
+      </section>
 
+      <section className="route-section content-white about-editorial-content">
         <ScrollReveal>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 my-8">
-            <EditorialImage 
-              src={aboutStory} 
-              alt="WISTA Singapore female leaders community" 
-              onClick={() => setActiveLightbox({ src: aboutStory, alt: 'Community Engagement', caption: 'WISTA Singapore Executive Community' })}
-            />
-            <EditorialImage 
-              src={aboutOperations} 
-              alt="Vessel deck officer briefing" 
-              onClick={() => setActiveLightbox({ src: aboutOperations, alt: 'Maritime Operations Briefing', caption: 'Naval Vessel Briefing & Operational Exchange' })}
+          <div className="about-editorial-opening">
+            <div className="about-editorial-heading">
+              <p className="eyebrow">WISTA SINGAPORE</p>
+              <h2>A network built on <em>connection.</em></h2>
+            </div>
+            <EditorialImage
+              src={aboutCommunity}
+              alt="WISTA Singapore members gathered together"
+              className="about-community-image"
+              onClick={() => setActiveLightbox({ src: aboutCommunity, alt: 'WISTA Singapore members gathered together', caption: 'WISTA Singapore Community' })}
             />
           </div>
         </ScrollReveal>
+
+        <ScrollReveal>
+          <div className="about-principles">
+            {[
+              ["OUR PURPOSE", "We create a place for women to connect, learn and lead across Singapore's maritime world."],
+              ["OUR MISSION", "Empowering women through networking, education and advocacy in Singapore's shipping, trading and logistics ecosystem."],
+              ["OUR FUTURE", "We work toward a more diverse, inclusive and resilient maritime industry for generations to come."]
+            ].map(([title, text], index) => (
+              <article className="about-principle" key={title}>
+                <span className="about-principle-number">0{index + 1}</span>
+                <div className="about-principle-copy">
+                  <h3>{title}</h3>
+                  <p>{text}</p>
+                  <ArrowLink href="#">Explore story</ArrowLink>
+                </div>
+              </article>
+            ))}
+          </div>
+        </ScrollReveal>
       </section>
+
     </PageShell>
   )
 }

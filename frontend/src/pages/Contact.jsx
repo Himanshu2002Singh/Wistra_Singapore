@@ -3,7 +3,7 @@ import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
 
 // Exclusive Curated Background Image for Contact
-import contactHeroBg from '../assets/images/wista/hero/contact-hero-bg.jpg'
+import contactHeroBg from '../assets/images/wista/client-provided/wista-networking-dinner.jpg'
 
 export default function Contact() {
   return (
@@ -16,9 +16,9 @@ export default function Contact() {
         bgPosition="center 30%"
         variant="sweep"
       />
-      <section className="route-section content-dark">
+      <section className="route-section content-white contact-editorial">
         <div className="contact-layout">
-          <div>
+          <div className="contact-copy">
             <h2>Start a<br /><em>conversation.</em></h2>
             <p className="page-lead">For general enquiries, partnerships and membership questions, send us a note.</p>
             <address className="contact-office">

@@ -5,7 +5,7 @@ import Lightbox from '@/components/ui/Lightbox'
 import ScrollReveal from '@/components/ui/ScrollReveal'
 
 // Exclusive Curated Images for Gallery
-import galleryHeroBg from '../assets/images/wista/hero/gallery-hero-bg.jpg'
+import galleryHeroBg from '../assets/images/wista/client-provided/wista-member-gala-dinner.jpg'
 import g01 from '../assets/images/wista/gallery/gallery-item-01.jpg'
 import g02 from '../assets/images/wista/gallery/gallery-item-02.jpg'
 import g03 from '../assets/images/wista/gallery/gallery-item-03.jpg'
