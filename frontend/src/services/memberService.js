@@ -5,6 +5,11 @@ export const getMyMembershipApi = async () => {
   return response.data
 }
 
+export const updateMyProfileApi = async (profileData) => {
+  const response = await api.patch('/membership/profile', profileData)
+  return response.data
+}
+
 export const getAdminMembershipsApi = async (params) => {
   const response = await api.get('/admin/memberships', { params })
   return response.data

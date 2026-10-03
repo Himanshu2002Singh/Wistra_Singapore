@@ -27,7 +27,10 @@ export default function Login() {
       setLoading(false)
 
       const roleName = authenticatedUser?.role?.name || authenticatedUser?.role || 'MEMBER'
-      const redirectPath = location.state?.from?.pathname
+      const requestedPath = location.state?.from?.pathname
+      const redirectPath = requestedPath?.startsWith('/') && !requestedPath.startsWith('//')
+        ? requestedPath
+        : null
 
       const adminRoles = [
         'SUPER_ADMIN',
@@ -37,10 +40,12 @@ export default function Login() {
         'COMMUNICATIONS_ADMIN',
       ]
 
-      if (redirectPath) {
+      if (redirectPath?.startsWith('/admin') && adminRoles.includes(roleName)) {
         navigate(redirectPath, { replace: true })
       } else if (adminRoles.includes(roleName)) {
         navigate('/admin/dashboard', { replace: true })
+      } else if (redirectPath && !redirectPath.startsWith('/admin')) {
+        navigate(redirectPath, { replace: true })
       } else {
         navigate('/member/dashboard', { replace: true })
       }

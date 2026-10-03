@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import MemberLayout from '@/components/member/MemberLayout';
 import { getMyMembershipApi } from '@/services/memberService';
-import { upcomingEvents as eventsData } from '@/data/events';
+import { getMyApplicationsApi } from '@/services/membershipService';
+import { getMyPaymentsApi } from '@/services/paymentService';
 import { useAuth } from '@/context/AuthContext';
 import { 
   ArrowUpRight, 
@@ -15,109 +16,66 @@ import {
   IdCard, 
   ShieldCheck, 
   Globe, 
-  Clock, 
-  MapPin, 
   Sparkles,
   ArrowRight,
   QrCode
 } from 'lucide-react';
 
-import eventCard1 from '@/assets/images/wista/events/event-card-1.jpg';
-import eventCard2 from '@/assets/images/wista/events/event-card-2.jpg';
-import eventCard3 from '@/assets/images/wista/events/event-card-3.jpg';
-import networkPhoto from '@/assets/images/wista/network/network-maritime-1.jpg';
-
 export default function Dashboard() {
   const { user } = useAuth();
-  const [dashboardData, setDashboardData] = useState(null);
-  const [cardData, setCardData] = useState(null);
+  const [membershipData, setMembershipData] = useState(null);
+  const [applications, setApplications] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        setLoading(true);
-        const res = await getMyMembershipApi();
-        if (res && res.success && res.data) {
-          if (res.data.dashboard) {
-            setDashboardData(res.data.dashboard);
-          }
-          if (res.data.card) {
-            setCardData(res.data.card);
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to load live membership API data, using fallback state.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDashboard();
-  }, []);
-
-  const memberFirstName = user?.first_name || 'Member';
-  const memberFullName = user 
-    ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'WISTA Singapore Member'
-    : 'Jane Doe';
-
-  const dash = dashboardData || {
-    status: 'ACTIVE',
-    membership_number: 'WISTA-SG-000001',
-    membership_type: 'INDIVIDUAL',
-    start_date: '2026-06-01',
-    expiry_date: '2027-05-31',
-    days_remaining: 247,
-    company: 'PSA International',
+  const fetchDashboard = async () => {
+    setLoading(true);
+    setLoadError(false);
+    const results = await Promise.allSettled([
+      getMyMembershipApi(),
+      getMyApplicationsApi(),
+      getMyPaymentsApi(),
+    ]);
+    let loaded = false;
+    if (results[0].status === 'fulfilled' && results[0].value?.success) {
+      setMembershipData(results[0].value.data);
+      loaded = true;
+    }
+    if (results[1].status === 'fulfilled' && results[1].value?.success) {
+      setApplications(results[1].value.data?.applications || []);
+      loaded = true;
+    }
+    if (results[2].status === 'fulfilled' && results[2].value?.success) {
+      setPayments(results[2].value.data || []);
+      loaded = true;
+    }
+    setLoadError(!loaded);
+    setLoading(false);
   };
 
-  const card = cardData || {
-    member_name: memberFullName,
-    membership_number: dash.membership_number,
-    membership_type: dash.membership_type === 'CORPORATE' ? 'Corporate Member' : 'Individual Member',
-    company: dash.company || 'WISTA Singapore Member',
-    valid_thru: '05/2027',
-    status: 'ACTIVE',
-    branding: 'WISTA Singapore',
-  };
+  useEffect(() => { fetchDashboard(); }, []);
 
-  // 2-3 Upcoming events for display
-  const displayEvents = eventsData && eventsData.length > 0 ? eventsData.slice(0, 3) : [
-    {
-      id: 1,
-      title: 'WISTA SG AGM & Executive Session',
-      date: '2026-10-15',
-      location: 'Singapore Cricket Club',
-      type: 'AGM',
-      description: 'Annual General Meeting and strategic planning for WISTA Singapore members.',
-      image: eventCard1,
-      isRegistered: true,
-    },
-    {
-      id: 2,
-      title: 'WISTA Singapore Annual Gala Dinner',
-      date: '2026-11-20',
-      location: 'Marina Bay Sands',
-      type: 'Gala Dinner',
-      description: 'Join us for an evening of networking, awards, and celebration with maritime leaders.',
-      image: eventCard2,
-      isRegistered: false,
-    },
-    {
-      id: 3,
-      title: 'Asia Pacific Maritime Forum & Panel',
-      date: '2026-12-05',
-      location: 'Marina Bay Sands Expo',
-      type: 'Panel',
-      description: 'Keynote and panel discussion on port technology, decarbonization, and diversity.',
-      image: eventCard3,
-      isRegistered: false,
-    },
-  ];
+  const dash = membershipData?.dashboard || {};
+  const member = membershipData?.user || user || {};
+  const memberFirstName = member.first_name || '';
+  const memberFullName = [member.first_name, member.last_name].filter(Boolean).join(' ') || '—';
+  const profile = membershipData?.profiles?.individual || membershipData?.profiles?.corporate;
+  const company = dash.company && dash.company !== 'N/A' ? dash.company : (profile?.company || profile?.company_name || '—');
+  const latestApplication = applications[0];
+  const latestPayment = payments[0];
+  const card = membershipData?.card;
+  const membershipStatus = membershipData?.membership ? (dash.status || membershipData.effective_status) : (latestApplication?.status || 'NOT AVAILABLE');
+  const formatDate = (value) => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not available';
+  const paymentAmount = latestPayment?.invoice?.total ?? latestPayment?.amount;
+  const paymentCurrency = latestPayment?.invoice?.currency || latestPayment?.currency || 'SGD';
 
   return (
     <MemberLayout>
       <div className="w-full text-white pb-20">
         <div className="w-full max-w-[1600px] mx-auto space-y-10">
+          {loadError && <div role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">We could not load your member information. <button onClick={fetchDashboard} className="underline font-semibold">Try again</button></div>}
+          {loading && <div role="status" className="text-sm text-slate-300">Loading your member information…</div>}
 
           {/* ==================================================
               SECTION 1: EDITORIAL HERO / WELCOME AREA
@@ -135,21 +93,21 @@ export default function Dashboard() {
                 </div>
 
                 <h1 className="font-[var(--serif)] text-4xl sm:text-5xl lg:text-6xl font-normal leading-[1.05] tracking-tight text-white">
-                  Good morning, <br />
-                  <em className="italic text-[#5ee5e9] font-serif">{memberFirstName}.</em>
+                  Welcome, <br />
+                  <em className="italic text-[#5ee5e9] font-serif">{memberFirstName || 'Member'}.</em>
                 </h1>
 
                 <p className="text-slate-300 text-sm sm:text-base max-w-xl font-medium leading-relaxed">
-                  Welcome back to WISTA Singapore. Your active membership credentials, executive events, and maritime network are ready.
+                  Welcome to your WISTA Singapore member portal. Your account and membership information is shown below.
                 </p>
 
                 <div className="pt-2 flex flex-wrap items-center gap-4 text-xs font-semibold tracking-wider uppercase">
                   <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md bg-[#163d5a] border border-[#5ee5e9]/30 text-[#5ee5e9]">
                     <ShieldCheck size={14} className="text-[#59D781]" />
-                    <span>Verified Active Member</span>
+                    <span>{membershipData?.membership ? membershipStatus : (latestApplication ? `APPLICATION ${latestApplication.status}` : 'MEMBER ACCOUNT')}</span>
                   </span>
                   <span className="text-slate-400 font-mono text-[11px]">
-                    ID: {dash.membership_number}
+                    ID: {dash.membership_number || 'Not available'}
                   </span>
                 </div>
               </div>
@@ -196,14 +154,14 @@ export default function Dashboard() {
                     MEMBERSHIP STATUS & CREDENTIALS
                   </p>
                   <h2 className="font-[var(--serif)] text-3xl sm:text-4xl text-white font-normal">
-                    Active Membership Profile
+                    {membershipData?.membership ? 'Membership Profile' : 'Membership Information'}
                   </h2>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold tracking-widest bg-[#59D781]/20 text-[#59D781] border border-[#59D781]/40 uppercase shadow-lg">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#59D781] animate-pulse" />
-                    STATUS: ACTIVE
+                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold tracking-widest bg-white/10 text-slate-200 border border-white/20 uppercase shadow-lg">
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-300" />
+                    STATUS: {membershipStatus}
                   </span>
                 </div>
               </div>
@@ -213,38 +171,36 @@ export default function Dashboard() {
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">MEMBER NAME</span>
                   <p className="text-xl font-serif text-white font-medium">{memberFullName}</p>
-                  <p className="text-xs text-[#5ee5e9] font-medium">{dash.company}</p>
+                  <p className="text-xs text-[#5ee5e9] font-medium">{company}</p>
                 </div>
 
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">MEMBERSHIP NUMBER</span>
-                  <p className="text-lg font-mono text-white font-bold tracking-wider">{dash.membership_number}</p>
+                  <p className="text-lg font-mono text-white font-bold tracking-wider">{dash.membership_number || 'Not available'}</p>
                   <p className="text-xs text-slate-400">WISTA Singapore Chapter</p>
                 </div>
 
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">MEMBERSHIP CATEGORY</span>
                   <p className="text-lg font-semibold text-white">
-                    {dash.membership_type === 'CORPORATE' ? 'Corporate Member' : 'Individual Member'}
+                    {dash.membership_type ? (dash.membership_type === 'CORPORATE' ? 'Corporate Member' : 'Individual Member') : 'Not available'}
                   </p>
-                  <p className="text-xs text-[#59D781] font-semibold">Annual Tier Paid</p>
+                  <p className="text-xs text-slate-400 font-semibold">Application: {latestApplication?.status || 'Not available'}</p>
                 </div>
 
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">VALIDITY & RENEWAL</span>
                   <p className="text-lg font-serif text-white">
-                    {dash.expiry_date ? new Date(dash.expiry_date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '31 May 2027'}
+                    {formatDate(dash.expiry_date)}
                   </p>
-                  <span className="inline-block text-[11px] font-medium text-[#5ee5e9] bg-[#5ee5e9]/10 px-2.5 py-0.5 rounded border border-[#5ee5e9]/20">
-                    {dash.days_remaining || 247} Days Remaining
-                  </span>
+                  {dash.days_remaining !== undefined && membershipData?.membership && <span className="inline-block text-[11px] font-medium text-[#5ee5e9] bg-[#5ee5e9]/10 px-2.5 py-0.5 rounded border border-[#5ee5e9]/20">{dash.days_remaining} Days Remaining</span>}
                 </div>
               </div>
 
               {/* Quick Card Action Footer */}
               <div className="pt-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-t border-white/10">
                 <p className="text-xs text-slate-300">
-                  Your digital membership card is active and accepted at all WISTA International events worldwide.
+                  {card ? `Membership card status: ${card.status || 'Not available'}.` : 'Digital membership card details are not available yet.'}
                 </p>
                 <Link 
                   to="/member/card"
@@ -271,8 +227,8 @@ export default function Dashboard() {
                   <CheckCircle2 size={13} className="text-[#59D781]" />
                   <span>01. MEMBERSHIP STATUS</span>
                 </div>
-                <p className="font-serif text-lg text-white font-medium">Active Member</p>
-                <p className="text-xs text-slate-400">Valid through 31 May 2027 • All privileges active</p>
+                <p className="font-serif text-lg text-white font-medium">{membershipStatus}</p>
+                <p className="text-xs text-slate-400">{membershipData?.membership ? `Valid through ${formatDate(dash.expiry_date)}` : (latestApplication ? `Application status: ${latestApplication.status}` : 'Membership status not available')}</p>
               </div>
 
               {/* Strip Item 2 */}
@@ -281,8 +237,8 @@ export default function Dashboard() {
                   <Calendar size={13} className="text-[#5ee5e9]" />
                   <span>02. NEXT UPCOMING EVENT</span>
                 </div>
-                <p className="font-serif text-lg text-white font-medium">15 OCT 2026 • WISTA SG AGM</p>
-                <p className="text-xs text-slate-400">Singapore Cricket Club • Member Invitation</p>
+                <p className="font-serif text-lg text-white font-medium">Not available</p>
+                <p className="text-xs text-slate-400">Member event information is not connected to the backend yet.</p>
               </div>
 
               {/* Strip Item 3 */}
@@ -291,8 +247,8 @@ export default function Dashboard() {
                   <Wallet size={13} className="text-[#59D781]" />
                   <span>03. FINANCIAL STATUS</span>
                 </div>
-                <p className="font-serif text-lg text-white font-medium">SGD 0.00 Outstanding</p>
-                <p className="text-xs text-[#59D781] font-medium">Annual membership dues fully cleared</p>
+                <p className="font-serif text-lg text-white font-medium">{latestPayment ? `${paymentCurrency} ${Number(paymentAmount || 0).toFixed(2)} • ${latestPayment.payment_status}` : 'No payment record available'}</p>
+                <p className="text-xs text-slate-400 font-medium">Latest payment record</p>
               </div>
 
             </div>
@@ -364,79 +320,8 @@ export default function Dashboard() {
               </Link>
             </div>
 
-            <div className="space-y-4">
-              {displayEvents.map((event) => {
-                const eventDate = new Date(event.date);
-                const monthStr = eventDate.toLocaleDateString('en-SG', { month: 'short' }).toUpperCase();
-                const dayStr = eventDate.getDate();
-
-                return (
-                  <div 
-                    key={event.id}
-                    className="group bg-[#0c243b] border border-white/10 hover:border-[#5ee5e9]/40 p-5 sm:p-6 rounded-xl transition duration-200 grid grid-cols-1 md:grid-cols-12 gap-6 items-center"
-                  >
-                    {/* Date & Thumbnail */}
-                    <div className="md:col-span-4 flex items-center gap-4">
-                      <div className="w-16 h-16 shrink-0 bg-[#071626] border border-white/15 rounded-lg flex flex-col items-center justify-center text-center">
-                        <span className="text-[10px] font-bold tracking-widest text-[#e85d4a]">{monthStr}</span>
-                        <span className="font-[var(--serif)] text-2xl text-white font-bold leading-none">{dayStr}</span>
-                      </div>
-                      <div className="w-24 h-16 shrink-0 rounded-md overflow-hidden bg-slate-800 border border-white/10 hidden sm:block">
-                        <img 
-                          src={event.image || eventCard1} 
-                          alt={event.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition duration-300" 
-                        />
-                      </div>
-                      <div className="sm:hidden">
-                        <span className="px-2.5 py-1 bg-[#5ee5e9]/10 text-[#5ee5e9] text-[10px] font-bold uppercase rounded border border-[#5ee5e9]/30">
-                          {event.type}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Event Content */}
-                    <div className="md:col-span-5 space-y-1.5">
-                      <div className="hidden sm:flex items-center gap-2">
-                        <span className="px-2.5 py-0.5 bg-[#5ee5e9]/10 text-[#5ee5e9] text-[9px] font-bold tracking-wider uppercase rounded border border-[#5ee5e9]/30">
-                          {event.type}
-                        </span>
-                        <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                          <MapPin size={12} className="text-slate-400" />
-                          {event.location}
-                        </span>
-                      </div>
-                      <h4 className="font-[var(--serif)] text-xl text-white group-hover:text-[#5ee5e9] transition">
-                        {event.title}
-                      </h4>
-                      <p className="text-xs text-slate-300 line-clamp-1">
-                        {event.description}
-                      </p>
-                    </div>
-
-                    {/* Action & Status */}
-                    <div className="md:col-span-3 flex md:flex-col justify-between md:items-end items-center gap-3">
-                      {event.isRegistered ? (
-                        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-[#59D781] bg-[#59D781]/10 px-3 py-1 rounded-full border border-[#59D781]/30 uppercase">
-                          <CheckCircle2 size={12} /> REGISTERED
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold tracking-wider text-[#5ee5e9] bg-[#5ee5e9]/10 px-3 py-1 rounded-full border border-[#5ee5e9]/30 uppercase">
-                          MEMBER INVITATION
-                        </span>
-                      )}
-
-                      <Link 
-                        to="/member/events"
-                        className="inline-flex items-center gap-1 text-xs font-bold tracking-wider uppercase text-white hover:text-[#5ee5e9] transition"
-                      >
-                        <span>DETAILS</span>
-                        <ArrowUpRight size={14} />
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="rounded-xl border border-white/10 bg-[#0c243b] p-6 text-sm text-slate-300">
+              No member event feed is available from the backend yet. Use the event calendar to view available events.
             </div>
           </section>
 
@@ -459,16 +344,16 @@ export default function Dashboard() {
                 </h3>
 
                 <p className="text-xs text-slate-300 leading-relaxed max-w-md">
-                  Connect directly with female leaders, executives, legal experts, and maritime professionals across Singapore and over 56 national WISTA associations worldwide.
+                  Browse the member directory to find member profiles that are available to your account.
                 </p>
 
                 <div className="grid grid-cols-2 gap-4 py-2 border-y border-white/10">
                   <div>
-                    <span className="font-[var(--serif)] text-3xl text-[#5ee5e9]">250+</span>
+                    <span className="font-[var(--serif)] text-3xl text-[#5ee5e9]">—</span>
                     <p className="text-[10px] font-bold tracking-wider uppercase text-slate-400">Singapore Members</p>
                   </div>
                   <div>
-                    <span className="font-[var(--serif)] text-3xl text-[#e85d4a]">56</span>
+                    <span className="font-[var(--serif)] text-3xl text-[#e85d4a]">—</span>
                     <p className="text-[10px] font-bold tracking-wider uppercase text-slate-400">Global Countries</p>
                   </div>
                 </div>
@@ -495,7 +380,7 @@ export default function Dashboard() {
                     <span>DIGITAL CREDENTIAL</span>
                   </div>
                   <span className="text-[10px] font-mono text-[#5ee5e9] bg-[#5ee5e9]/10 px-2 py-0.5 rounded border border-[#5ee5e9]/30">
-                    VERIFIED
+                    {card?.status || 'NOT AVAILABLE'}
                   </span>
                 </div>
 
@@ -504,19 +389,19 @@ export default function Dashboard() {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-[10px] font-bold tracking-[0.2em] text-[#5ee5e9] uppercase">WISTA SINGAPORE</p>
-                      <p className="text-xs font-medium text-slate-300">{card.membership_type}</p>
+                      <p className="text-xs font-medium text-slate-300">{card?.membership_type || 'Membership card unavailable'}</p>
                     </div>
                     <QrCode size={28} className="text-white/70" />
                   </div>
 
                   <div>
-                    <p className="font-[var(--serif)] text-xl text-white font-normal">{card.member_name}</p>
-                    <p className="text-xs text-slate-300 font-mono mt-0.5">{card.membership_number}</p>
+                    <p className="font-[var(--serif)] text-xl text-white font-normal">{card?.member_name || memberFullName}</p>
+                    <p className="text-xs text-slate-300 font-mono mt-0.5">{card?.membership_number || 'Not available'}</p>
                   </div>
 
                   <div className="flex justify-between items-end text-[10px] text-slate-400 border-t border-white/10 pt-2">
-                    <span>COMPANY: <strong className="text-white">{card.company}</strong></span>
-                    <span>VALID THRU: <strong className="text-[#59D781]">{card.valid_thru}</strong></span>
+                    <span>COMPANY: <strong className="text-white">{card?.company || 'Not available'}</strong></span>
+                    <span>VALID THRU: <strong className="text-[#59D781]">{card?.valid_thru || 'Not available'}</strong></span>
                   </div>
                 </div>
               </div>

@@ -1,26 +1,63 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import MemberLayout from '@/components/member/MemberLayout';
 import { User, Camera, Shield, Save, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { getMyMembershipApi, updateMyProfileApi } from '@/services/memberService';
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user: authenticatedUser } = useAuth();
 
-  const [formData, setFormData] = useState({
-    firstName: user?.first_name || 'Sarah',
-    lastName: user?.last_name || 'Tan',
-    email: user?.email || 'sarah.tan@example.com',
-    phone: user?.phone || '+65 9123 4567',
-    company: 'Oceanic Shipping Pte Ltd',
-    designation: 'Operations Director',
-    biography: 'Experienced maritime professional with over 15 years in vessel operations and fleet management.',
-    linkedin: 'https://linkedin.com/in/sarahtan',
-    showEmail: true,
-    showPhone: false,
-    showCompany: true
-  });
-
+  const [formData, setFormData] = useState(null);
+  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [memberType, setMemberType] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [saveError, setSaveError] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const loadProfile = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const response = await getMyMembershipApi();
+      if (!response?.success || !response.data) throw new Error('profile_unavailable');
+
+      const { data } = response;
+      const currentUser = data.user || authenticatedUser || {};
+      const individual = data.profiles?.individual;
+      const corporate = data.profiles?.corporate;
+      const representative = corporate?.representatives?.find((item) => String(item.user_id) === String(currentUser.id))
+        || corporate?.representatives?.find((item) => item.is_primary);
+      const privacy = data.privacySettings;
+
+      setFormData({
+        firstName: currentUser.first_name || '',
+        lastName: currentUser.last_name || '',
+        email: currentUser.email || '',
+        phone: currentUser.phone || '',
+        company: individual?.company || corporate?.company_name || '',
+        designation: individual?.designation || representative?.designation || '',
+        biography: individual?.biography || corporate?.company_description || '',
+        linkedin: individual?.linkedin_url || corporate?.website || '',
+        showEmail: privacy?.show_email ?? true,
+        showPhone: privacy?.show_phone ?? false,
+        showCompany: privacy?.show_company ?? true,
+      });
+      setProfilePhoto(currentUser.profile_photo || individual?.photo_url || null);
+      setMemberType(data.membership?.membership_type || (individual ? 'INDIVIDUAL' : corporate ? 'CORPORATE' : null));
+    } catch (error) {
+      setLoadError(error.response?.status === 404
+        ? 'Your member profile could not be found.'
+        : 'We could not load your profile. Check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [authenticatedUser]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -30,13 +67,33 @@ const Profile = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 4000);
+    setSaving(true);
+    setSaveError('');
+    setSavedSuccess(false);
+    try {
+      const response = await updateMyProfileApi({
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        phone: formData.phone || null,
+        privacy: {
+          show_email: formData.showEmail,
+          show_phone: formData.showPhone,
+          show_company: formData.showCompany,
+        },
+      });
+      if (!response?.success) throw new Error('save_failed');
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 4000);
+    } catch {
+      setSaveError('We could not save your profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const initials = `${formData.firstName?.[0] || 'S'}${formData.lastName?.[0] || 'T'}`.toUpperCase();
+  const initials = `${formData?.firstName?.[0] || ''}${formData?.lastName?.[0] || ''}`.toUpperCase() || 'WM';
 
   return (
     <MemberLayout>
@@ -51,12 +108,22 @@ const Profile = () => {
           <p className="text-sm text-slate-300">Manage your personal information, professional details, and directory privacy settings.</p>
         </div>
 
+        {loading && <div role="status" className="rounded-lg border border-white/10 bg-[#0c243b] p-6 text-sm text-slate-300">Loading your profile…</div>}
+        {!loading && loadError && (
+          <div role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
+            <p>{loadError}</p>
+            <button type="button" onClick={loadProfile} className="mt-3 font-semibold underline">Try again</button>
+          </div>
+        )}
+        {!loading && !loadError && formData && <>
+
         {savedSuccess && (
           <div className="p-4 bg-[#59D781]/15 border border-[#59D781]/40 rounded-lg text-[#59D781] text-xs font-semibold flex items-center gap-2 animate-fade-in">
             <CheckCircle2 size={16} />
             <span>Profile information updated successfully!</span>
           </div>
         )}
+        {saveError && <div role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">{saveError}</div>}
 
         {/* Profile Card Container */}
         <div className="bg-[#0c243b] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
@@ -64,27 +131,28 @@ const Profile = () => {
           <div className="bg-gradient-to-r from-[#071626] to-[#163d5a] p-6 sm:p-8 flex flex-col sm:flex-row gap-6 items-center border-b border-white/10">
             <div className="relative">
               <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-[#163d5a] to-[#1b9aaa] text-white flex items-center justify-center text-3xl font-[var(--serif)] font-normal border-2 border-[#5ee5e9]/40 shadow-xl">
-                {initials}
+                {profilePhoto ? <img src={profilePhoto} alt="Your profile" className="h-full w-full rounded-full object-cover" /> : initials}
               </div>
               <button 
                 type="button"
                 className="absolute bottom-0 right-0 bg-[#e85d4a] hover:bg-[#f27663] text-white p-2 rounded-full border border-white/20 shadow-md cursor-pointer transition"
-                title="Change Avatar"
+                title="Profile photo upload is not available yet"
+                disabled
               >
                 <Camera size={14} />
               </button>
             </div>
             <div className="text-center sm:text-left space-y-1">
               <h2 className="text-2xl sm:text-3xl font-[var(--serif)] font-normal text-white">
-                {formData.firstName} {formData.lastName}
+                {[formData.firstName, formData.lastName].filter(Boolean).join(' ') || 'Member'}
               </h2>
               <p className="text-sm text-slate-300">
-                {formData.designation} at <span className="text-[#5ee5e9] font-medium">{formData.company}</span>
+                {[formData.designation, formData.company].filter(Boolean).join(' at ') || 'Professional details not available'}
               </p>
               <div className="pt-2">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider bg-[#59D781]/15 text-[#59D781] border border-[#59D781]/30 uppercase">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#59D781] animate-pulse" />
-                  INDIVIDUAL MEMBER
+                  {memberType ? `${memberType} MEMBER` : 'MEMBER'}
                 </span>
               </div>
             </div>
@@ -126,7 +194,7 @@ const Profile = () => {
                     type="email" 
                     name="email" 
                     value={formData.email} 
-                    onChange={handleChange} 
+                    readOnly
                     className="w-full px-4 py-3 bg-[#071626] border border-white/20 rounded-md text-white focus:border-[#5ee5e9] focus:outline-none transition"
                     required 
                   />
@@ -156,7 +224,7 @@ const Profile = () => {
                     type="text" 
                     name="company" 
                     value={formData.company} 
-                    onChange={handleChange} 
+                    readOnly
                     className="w-full px-4 py-3 bg-[#071626] border border-white/20 rounded-md text-white focus:border-[#5ee5e9] focus:outline-none transition"
                   />
                 </div>
@@ -166,7 +234,7 @@ const Profile = () => {
                     type="text" 
                     name="designation" 
                     value={formData.designation} 
-                    onChange={handleChange} 
+                    readOnly
                     className="w-full px-4 py-3 bg-[#071626] border border-white/20 rounded-md text-white focus:border-[#5ee5e9] focus:outline-none transition"
                   />
                 </div>
@@ -176,7 +244,7 @@ const Profile = () => {
                     type="url" 
                     name="linkedin" 
                     value={formData.linkedin} 
-                    onChange={handleChange} 
+                    readOnly
                     className="w-full px-4 py-3 bg-[#071626] border border-white/20 rounded-md text-white focus:border-[#5ee5e9] focus:outline-none transition"
                   />
                 </div>
@@ -185,11 +253,11 @@ const Profile = () => {
                   <textarea 
                     name="biography" 
                     value={formData.biography} 
-                    onChange={handleChange} 
+                    readOnly
                     rows={4} 
                     className="w-full px-4 py-3 bg-[#071626] border border-white/20 rounded-md text-white focus:border-[#5ee5e9] focus:outline-none transition"
                   />
-                  <p className="text-[11px] text-slate-400 mt-1">Brief summary of your professional background in maritime, shipping, or trading.</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Professional details are read-only here and come from your membership application.</p>
                 </div>
               </div>
             </div>
@@ -239,20 +307,24 @@ const Profile = () => {
             <div className="flex justify-end gap-4 border-t border-white/10 pt-6">
               <button 
                 type="button" 
+                onClick={loadProfile}
+                disabled={saving}
                 className="px-6 py-3 border border-white/20 text-slate-300 hover:text-white hover:bg-white/10 text-xs font-bold tracking-widest uppercase rounded-md transition cursor-pointer"
               >
                 Cancel
               </button>
               <button 
                 type="submit" 
-                className="px-6 py-3 bg-[#e85d4a] hover:bg-[#f27663] text-white text-xs font-bold tracking-widest uppercase rounded-md transition shadow-lg cursor-pointer flex items-center gap-2"
+                disabled={saving}
+                className="px-6 py-3 bg-[#e85d4a] hover:bg-[#f27663] disabled:opacity-60 text-white text-xs font-bold tracking-widest uppercase rounded-md transition shadow-lg cursor-pointer flex items-center gap-2"
               >
                 <Save size={16} />
-                <span>Save Changes</span>
+                <span>{saving ? 'Saving…' : 'Save Changes'}</span>
               </button>
             </div>
           </form>
         </div>
+        </>}
       </div>
     </MemberLayout>
   );

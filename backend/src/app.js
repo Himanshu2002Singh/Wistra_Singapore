@@ -47,7 +47,6 @@ app.get('/api/health', async (req, res) => {
       success: false,
       message: 'WISTA API database connection issue',
       database: 'disconnected',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 });

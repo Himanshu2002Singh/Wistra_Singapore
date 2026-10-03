@@ -1,6 +1,6 @@
 'use strict';
 
-const { User, Role } = require('../models');
+const { User, Role, Permission } = require('../models');
 const { hashPassword, comparePassword } = require('../utils/password');
 const { generateToken } = require('../utils/jwt');
 const { validateRegister, validateLogin } = require('../validators/authValidator');
@@ -34,7 +34,13 @@ const register = async (req, res, next) => {
 
     // Role escalation protection: locate default MEMBER role
     const memberRole = await Role.findOne({ where: { name: 'MEMBER' } });
-    const roleId = memberRole ? memberRole.id : null;
+    if (!memberRole) {
+      return res.status(503).json({
+        success: false,
+        message: 'Registration is temporarily unavailable. Please contact WISTA support.',
+      });
+    }
+    const roleId = memberRole.id;
 
     // Hash password with bcrypt
     const password_hash = await hashPassword(password);
@@ -57,6 +63,14 @@ const register = async (req, res, next) => {
           model: Role,
           as: 'role',
           attributes: ['id', 'name', 'description'],
+          include: [
+            {
+              model: Permission,
+              as: 'permissions',
+              attributes: ['id', 'name', 'description'],
+              through: { attributes: [] },
+            },
+          ],
         },
       ],
       attributes: { exclude: ['password_hash'] },
@@ -68,13 +82,15 @@ const register = async (req, res, next) => {
       sub: createdUser.id,
       role: roleName,
     });
+    const safeUser = createdUser.toJSON();
+    safeUser.permissions = createdUser.role?.permissions?.map((permission) => permission.name) || [];
 
     return res.status(201).json({
       success: true,
       message: 'User registered successfully.',
       data: {
         token,
-        user: createdUser,
+        user: safeUser,
       },
     });
   } catch (error) {
@@ -107,6 +123,14 @@ const login = async (req, res, next) => {
           model: Role,
           as: 'role',
           attributes: ['id', 'name', 'description'],
+          include: [
+            {
+              model: Permission,
+              as: 'permissions',
+              attributes: ['id', 'name', 'description'],
+              through: { attributes: [] },
+            },
+          ],
         },
       ],
     });
@@ -150,6 +174,7 @@ const login = async (req, res, next) => {
     // Build sanitized user output
     const userJson = user.toJSON();
     delete userJson.password_hash;
+    userJson.permissions = user.role?.permissions?.map((permission) => permission.name) || [];
 
     return res.json({
       success: true,

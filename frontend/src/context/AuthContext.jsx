@@ -8,16 +8,20 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('wista_token'))
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [authError, setAuthError] = useState(null)
 
   const checkAuth = useCallback(async () => {
     const savedToken = localStorage.getItem('wista_token')
     if (!savedToken) {
       setUser(null)
       setToken(null)
+      setAuthError(null)
       setIsLoading(false)
       return
     }
 
+    setIsLoading(true)
+    setAuthError(null)
     try {
       const res = await getMeApi()
       if (res && res.success && res.user) {
@@ -27,11 +31,17 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('wista_token')
         setUser(null)
         setToken(null)
+        setAuthError(null)
       }
     } catch (err) {
-      localStorage.removeItem('wista_token')
-      setUser(null)
-      setToken(null)
+      if (err.response && err.response.status < 500) {
+        localStorage.removeItem('wista_token')
+        setUser(null)
+        setToken(null)
+        setAuthError(null)
+      } else {
+        setAuthError('The authentication service is temporarily unavailable.')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -41,8 +51,21 @@ export function AuthProvider({ children }) {
     checkAuth()
   }, [checkAuth])
 
+  useEffect(() => {
+    const handleInvalidSession = (event) => {
+      localStorage.removeItem('wista_token')
+      setUser(null)
+      setToken(null)
+      setAuthError(null)
+      setError(event.detail?.message || 'Your session expired. Please sign in again.')
+    }
+    window.addEventListener('wista:auth-invalid', handleInvalidSession)
+    return () => window.removeEventListener('wista:auth-invalid', handleInvalidSession)
+  }, [])
+
   const login = async (email, password) => {
     setError(null)
+    setAuthError(null)
     try {
       const res = await loginApi({ email, password })
       if (res && res.success && res.data && res.data.token) {
@@ -56,7 +79,11 @@ export function AuthProvider({ children }) {
         throw new Error(res.message || 'Login failed')
       }
     } catch (err) {
-      const message = err.response?.data?.message || err.message || 'Invalid email or password.'
+      const message = !err.response
+        ? 'Unable to reach the sign-in service. Please try again.'
+        : err.response.status >= 500
+          ? 'The sign-in service is temporarily unavailable. Please try again.'
+          : (err.response.data?.message || 'Invalid email or password.')
       setError(message)
       throw new Error(message)
     }
@@ -64,6 +91,7 @@ export function AuthProvider({ children }) {
 
   const register = async (userData) => {
     setError(null)
+    setAuthError(null)
     try {
       const res = await registerApi(userData)
       if (res && res.success && res.data && res.data.token) {
@@ -75,7 +103,11 @@ export function AuthProvider({ children }) {
       }
       return res
     } catch (err) {
-      const message = err.response?.data?.message || err.message || 'Registration failed'
+      const message = !err.response
+        ? 'Unable to reach the registration service. Please try again.'
+        : err.response.status >= 500
+          ? 'The registration service is temporarily unavailable. Please try again.'
+          : (err.response.data?.message || 'Registration failed.')
       setError(message)
       throw err
     }
@@ -84,13 +116,14 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try {
       await logoutApi()
-    } catch (err) {
+    } catch {
       // Ignore network errors on logout
     } finally {
       localStorage.removeItem('wista_token')
       setToken(null)
       setUser(null)
       setError(null)
+      setAuthError(null)
     }
   }
 
@@ -100,6 +133,7 @@ export function AuthProvider({ children }) {
     isAuthenticated: Boolean(user && token),
     isLoading,
     error,
+    authError,
     login,
     register,
     logout,

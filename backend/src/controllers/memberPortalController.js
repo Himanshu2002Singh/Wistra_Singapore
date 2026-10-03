@@ -1,6 +1,7 @@
 'use strict';
 
 const {
+  sequelize,
   Membership,
   User,
   IndividualProfile,
@@ -8,6 +9,7 @@ const {
   CorporateRepresentative,
   Payment,
   Invoice,
+  DirectoryPrivacySettings,
 } = require('../models');
 const { getEffectiveMembershipStatus } = require('../services/membershipActivationService');
 
@@ -32,6 +34,7 @@ const getMyMembership = async (req, res, next) => {
       where: { user_id: userId },
       include: [{ model: CorporateRepresentative, as: 'representatives' }],
     });
+    const privacySettings = await DirectoryPrivacySettings.findOne({ where: { user_id: userId } });
 
     if (!membership) {
       return res.json({
@@ -41,6 +44,7 @@ const getMyMembership = async (req, res, next) => {
           effective_status: 'INACTIVE',
           membership: null,
           user: req.user,
+          privacySettings,
           profiles: {
             individual: individualProfile,
             corporate: corporateProfile,
@@ -99,6 +103,7 @@ const getMyMembership = async (req, res, next) => {
         membership,
         card: digitalCard,
         dashboard: dashboardSummary,
+        privacySettings,
         profiles: {
           individual: individualProfile,
           corporate: corporateProfile,
@@ -110,6 +115,94 @@ const getMyMembership = async (req, res, next) => {
   }
 };
 
+/** Update account-owned fields and directory privacy settings for the JWT user. */
+const updateMyProfile = async (req, res, next) => {
+  let transaction;
+  try {
+    const body = req.body || {};
+    const allowedFields = ['first_name', 'last_name', 'phone', 'privacy'];
+    const unsupportedFields = Object.keys(body).filter((field) => !allowedFields.includes(field));
+    if (unsupportedFields.length) {
+      return res.status(400).json({ success: false, message: 'Only account contact details and directory privacy settings can be changed here.' });
+    }
+
+    const hasUserFields = ['first_name', 'last_name', 'phone'].some((field) => Object.prototype.hasOwnProperty.call(body, field));
+    const privacy = body.privacy;
+    if (!hasUserFields && privacy === undefined) {
+      return res.status(400).json({ success: false, message: 'Provide at least one supported profile change.' });
+    }
+
+    const updates = {};
+    for (const field of ['first_name', 'last_name']) {
+      if (!Object.prototype.hasOwnProperty.call(body, field)) continue;
+      if (typeof body[field] !== 'string' || !body[field].trim() || body[field].trim().length > 100) {
+        return res.status(400).json({ success: false, message: `${field} must be a non-empty string of at most 100 characters.` });
+      }
+      updates[field] = body[field].trim();
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'phone')) {
+      if (body.phone !== null && (typeof body.phone !== 'string' || body.phone.trim().length > 20)) {
+        return res.status(400).json({ success: false, message: 'phone must be a string of at most 20 characters or null.' });
+      }
+      updates.phone = typeof body.phone === 'string' ? (body.phone.trim() || null) : null;
+    }
+
+    const privacyFields = ['show_email', 'show_phone', 'show_company'];
+    if (privacy !== undefined) {
+      if (!privacy || typeof privacy !== 'object' || Array.isArray(privacy)) {
+        return res.status(400).json({ success: false, message: 'privacy must be an object of directory visibility settings.' });
+      }
+      const unsupportedPrivacyFields = Object.keys(privacy).filter((field) => !privacyFields.includes(field));
+      if (unsupportedPrivacyFields.length) {
+        return res.status(400).json({ success: false, message: 'One or more directory visibility settings are unsupported.' });
+      }
+      for (const field of Object.keys(privacy)) {
+        if (typeof privacy[field] !== 'boolean') {
+          return res.status(400).json({ success: false, message: 'Directory visibility settings must be true or false.' });
+        }
+      }
+      if (!Object.keys(privacy).length) {
+        return res.status(400).json({ success: false, message: 'Provide at least one directory visibility setting.' });
+      }
+    }
+
+    transaction = await sequelize.transaction();
+    const user = await User.findByPk(req.user.id, { transaction });
+    if (!user) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Member account was not found.' });
+    }
+
+    Object.assign(user, updates);
+    if (hasUserFields) await user.save({ transaction });
+
+    let privacySettings = null;
+    if (privacy !== undefined) {
+      privacySettings = await DirectoryPrivacySettings.findOne({ where: { user_id: req.user.id }, transaction });
+      if (!privacySettings) {
+        privacySettings = await DirectoryPrivacySettings.create({ user_id: req.user.id }, { transaction });
+      }
+      for (const field of privacyFields) {
+        if (Object.prototype.hasOwnProperty.call(privacy, field)) privacySettings[field] = privacy[field];
+      }
+      await privacySettings.save({ transaction });
+    }
+
+    await transaction.commit();
+    const safeUser = user.toJSON();
+    delete safeUser.password_hash;
+    return res.json({
+      success: true,
+      message: 'Profile changes saved.',
+      data: { user: safeUser, privacySettings },
+    });
+  } catch (error) {
+    if (transaction && !transaction.finished) await transaction.rollback();
+    next(error);
+  }
+};
+
 module.exports = {
   getMyMembership,
+  updateMyProfile,
 };

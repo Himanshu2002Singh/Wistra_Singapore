@@ -49,14 +49,14 @@ export default function RegisterIndividual() {
         try {
           await register({
             email: formData.email,
-            password: formData.password || 'Password123!',
+            password: formData.password,
             first_name: formData.firstName,
             last_name: formData.lastName,
             phone: formData.mobileNumber,
           })
         } catch (regErr) {
           if (regErr.response?.status === 409) {
-            await login(formData.email, formData.password || 'Password123!')
+            await login(formData.email, formData.password)
           } else {
             throw regErr
           }
@@ -233,6 +233,7 @@ export default function RegisterIndividual() {
                         type="password"
                         name="password"
                         required={!isAuthenticated}
+                        minLength={8}
                         value={formData.password}
                         onChange={handleChange}
                         placeholder="At least 8 characters"

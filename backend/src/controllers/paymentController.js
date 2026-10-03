@@ -283,9 +283,13 @@ const getInvoiceById = async (req, res, next) => {
       });
     }
 
-    // Check ownership unless admin
-    const isAdmin = ['SUPER_ADMIN', 'FINANCE_ADMIN', 'MEMBERSHIP_ADMIN'].includes(req.user.role?.name || req.user.role);
-    if (!isAdmin && invoice.user_id !== req.user.id) {
+    const isOwner = String(invoice.user_id) === String(req.user.id);
+    const roleName = req.user.role?.name || req.user.role;
+    const userPermissions = req.user.permissions || [];
+    const canReadAllInvoices = roleName === 'SUPER_ADMIN'
+      || userPermissions.includes('invoices.read')
+      || userPermissions.includes('invoices.manage');
+    if (!isOwner && !canReadAllInvoices) {
       return res.status(403).json({
         success: false,
         message: 'Access denied to this invoice.',

@@ -4,8 +4,9 @@ require('dotenv').config();
 const http = require('http');
 const app = require('../app');
 const sequelize = require('../config/database');
-const { User, Role } = require('../models');
+const { User, Role, Membership } = require('../models');
 const { comparePassword } = require('./password');
+const jwt = require('jsonwebtoken');
 
 let server;
 let PORT = 5099;
@@ -61,6 +62,8 @@ const runTests = async () => {
   server = app.listen(PORT);
 
   const testEmail = `test.user.${Date.now()}@example.com`;
+  const escalateEmail = `admin.hack.${Date.now()}@example.com`;
+  const otherEmail = `other.member.${Date.now()}@example.com`;
   const testPassword = 'Password123!';
   let jwtToken = '';
 
@@ -118,7 +121,6 @@ const runTests = async () => {
 
     // 6. Attempt registration with role escalation attempt
     console.log('\n[4] Testing Role Escalation Prevention...');
-    const escalateEmail = `admin.hack.${Date.now()}@example.com`;
     const escRes = await request('/api/auth/register', 'POST', {
       email: escalateEmail,
       password: testPassword,
@@ -155,6 +157,9 @@ const runTests = async () => {
     if (loginRes.status !== 200 || !loginRes.body.data?.token) {
       throw new Error('Valid login failed');
     }
+    if (!Array.isArray(loginRes.body.data.user.permissions) || !loginRes.body.data.user.permissions.includes('directory.read')) {
+      throw new Error('Login response must include the current database permissions for route authorization');
+    }
     jwtToken = loginRes.body.data.token;
     if (loginRes.body.data.user.password_hash) {
       throw new Error('SECURITY VIOLATION: password_hash leaked in login response!');
@@ -178,6 +183,109 @@ const runTests = async () => {
     if (meRes.status !== 200 || !meRes.body.user || meRes.body.user.email !== testEmail) {
       throw new Error('GET /api/auth/me failed with valid token');
     }
+    if (meRes.body.user.password_hash || !Array.isArray(meRes.body.user.permissions)) {
+      throw new Error('/api/auth/me must return safe user data and current permissions');
+    }
+    const expiredToken = jwt.sign({ sub: dbUser.id }, process.env.JWT_SECRET, { expiresIn: -1 });
+
+    // 11. Exercise member-owned dashboard/profile APIs and persistence.
+    console.log('\n[9] Testing member dashboard and profile APIs...');
+    const otherReg = await request('/api/auth/register', 'POST', {
+      email: otherEmail,
+      password: testPassword,
+      first_name: 'Other',
+      last_name: 'Member',
+    });
+    if (otherReg.status !== 201) throw new Error('Could not create second temporary member for ownership test');
+    const otherUserId = otherReg.body.data.user.id;
+
+    const memberDashboard = await request('/api/membership/me', 'GET', null, jwtToken);
+    if (memberDashboard.status !== 200 || String(memberDashboard.body.data?.user?.id) !== String(dbUser.id)) {
+      throw new Error('Member dashboard did not return the authenticated member');
+    }
+    if (memberDashboard.body.data?.membership !== null || memberDashboard.body.data?.has_membership !== false) {
+      throw new Error('A member without a membership record should receive an empty membership state');
+    }
+
+    const membershipRecord = await Membership.create({
+      user_id: dbUser.id,
+      membership_type: 'INDIVIDUAL',
+      membership_number: `TEST-MEM-${Date.now()}`,
+      status: 'PENDING',
+      start_date: '2026-06-01',
+      end_date: '2027-05-31',
+    });
+    for (const expectedStatus of ['PENDING', 'ACTIVE', 'EXPIRED', 'SUSPENDED', 'CANCELLED']) {
+      await membershipRecord.update({ status: expectedStatus });
+      const statusCheck = await request('/api/membership/me', 'GET', null, jwtToken);
+      if (statusCheck.status !== 200
+        || statusCheck.body.data?.membership?.status !== expectedStatus
+        || statusCheck.body.data?.effective_status !== expectedStatus) {
+        throw new Error(`Membership status ${expectedStatus} was not returned correctly`);
+      }
+    }
+    await membershipRecord.update({ status: 'ACTIVE', end_date: '2020-01-01' });
+    const expiredByEndDate = await request('/api/membership/me', 'GET', null, jwtToken);
+    if (expiredByEndDate.body.data?.effective_status !== 'EXPIRED') {
+      throw new Error('An active membership past its end date should be reported as expired');
+    }
+    const refreshedMembership = await request('/api/membership/me', 'GET', null, jwtToken);
+    if (refreshedMembership.body.data?.effective_status !== 'EXPIRED') {
+      throw new Error('Membership refetch did not return the latest backend status');
+    }
+    dbUser.status = 'SUSPENDED';
+    await dbUser.save();
+    const memberForbidden = await request('/api/membership/me', 'GET', null, jwtToken);
+    dbUser.status = 'ACTIVE';
+    await dbUser.save();
+    if (memberForbidden.status !== 403) throw new Error('Suspended account should receive 403 from member membership API');
+
+    const originalMembershipFindOne = Membership.findOne;
+    let memberServerError;
+    try {
+      Membership.findOne = async () => { throw new Error('Simulated membership data failure'); };
+      memberServerError = await request('/api/membership/me', 'GET', null, jwtToken);
+    } finally {
+      Membership.findOne = originalMembershipFindOne;
+    }
+    if (memberServerError?.status !== 500) throw new Error('Member membership API should return 500 when its data store fails');
+
+    const injectedProfileId = await request('/api/membership/me?user_id=' + otherUserId, 'GET', null, jwtToken);
+    const returnedOwnerId = injectedProfileId.body.data?.membership?.user?.id || injectedProfileId.body.data?.user?.id;
+    if (injectedProfileId.status !== 200 || String(returnedOwnerId) !== String(dbUser.id)) {
+      throw new Error('Member dashboard allowed selecting another user by query parameter');
+    }
+
+    const profileUpdate = await request('/api/membership/profile', 'PATCH', {
+      first_name: 'Updated',
+      last_name: 'Member',
+      phone: '+65 81234567',
+      privacy: { show_email: false, show_phone: true, show_company: false },
+    }, jwtToken);
+    if (profileUpdate.status !== 200 || profileUpdate.body.data?.user?.first_name !== 'Updated') {
+      throw new Error('Supported member profile fields did not save');
+    }
+    const persistedProfile = await request('/api/membership/me', 'GET', null, jwtToken);
+    const persistedUser = persistedProfile.body.data?.membership?.user || persistedProfile.body.data?.user;
+    if (persistedUser?.first_name !== 'Updated'
+      || persistedUser?.phone !== '+65 81234567'
+      || persistedProfile.body.data?.privacySettings?.show_email !== false
+      || persistedProfile.body.data?.privacySettings?.show_phone !== true
+      || persistedProfile.body.data?.privacySettings?.show_company !== false) {
+      throw new Error('Member profile or privacy changes did not persist');
+    }
+    const injectedUpdate = await request('/api/membership/profile', 'PATCH', {
+      user_id: otherUserId,
+      first_name: 'Hijacked',
+    }, jwtToken);
+    if (injectedUpdate.status !== 400) throw new Error('Profile update accepted a user_id override');
+
+    const memberWithoutToken = await request('/api/membership/me');
+    const memberWithInvalidToken = await request('/api/membership/me', 'GET', null, 'invalid.jwt.token');
+    const memberWithExpiredToken = await request('/api/membership/me', 'GET', null, expiredToken);
+    if (memberWithoutToken.status !== 401 || memberWithInvalidToken.status !== 401 || memberWithExpiredToken.status !== 401) {
+      throw new Error('Member dashboard accepted a missing, invalid, or expired session');
+    }
 
     // 11. GET /api/auth/me without token
     console.log('\n[9] Testing /api/auth/me without Token...');
@@ -195,6 +303,11 @@ const runTests = async () => {
       throw new Error('GET /api/auth/me with bad token should return 401');
     }
 
+    const expiredTokenRes = await request('/api/auth/me', 'GET', null, expiredToken);
+    if (expiredTokenRes.status !== 401) {
+      throw new Error('GET /api/auth/me with expired token should return 401');
+    }
+
     // 13. Test suspended user login
     console.log('\n[11] Testing Suspended Account Login...');
     dbUser.status = 'SUSPENDED';
@@ -208,9 +321,17 @@ const runTests = async () => {
       throw new Error('Suspended user login should return 403 Forbidden');
     }
 
-    // 14. Test Logout
+    // 14. Restore the temporary test account and require authentication for logout.
+    dbUser.status = 'ACTIVE';
+    await dbUser.save();
+    const logoutUnauthenticated = await request('/api/auth/logout', 'POST');
+    if (logoutUnauthenticated.status !== 401) {
+      throw new Error('Logout endpoint should require a valid access token');
+    }
+
+    // 15. Test authenticated Logout
     console.log('\n[12] Testing Logout Endpoint...');
-    const logoutRes = await request('/api/auth/logout', 'POST');
+    const logoutRes = await request('/api/auth/logout', 'POST', null, jwtToken);
     console.log('Logout Response:', logoutRes.status, logoutRes.body);
     if (logoutRes.status !== 200) {
       throw new Error('Logout endpoint failed');
@@ -219,8 +340,15 @@ const runTests = async () => {
     console.log('\n✅ ALL AUTHENTICATION TESTS PASSED SUCCESSFULLY!');
   } finally {
     if (server) {
-      server.close();
+      await new Promise((resolve) => server.close(resolve));
     }
+    const cleanupUsers = await User.findAll({
+      where: { email: [testEmail, escalateEmail, otherEmail] },
+      attributes: ['id'],
+    });
+    const cleanupUserIds = cleanupUsers.map((user) => user.id);
+    if (cleanupUserIds.length) await Membership.destroy({ where: { user_id: cleanupUserIds } });
+    await User.destroy({ where: { email: [testEmail, escalateEmail, otherEmail] } });
   }
 };
 

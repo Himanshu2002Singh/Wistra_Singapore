@@ -87,15 +87,18 @@ const runTests = async () => {
   await sequelize.authenticate();
 
   server = app.listen(PORT);
+  const testEmailPrefix = `rbac.${Date.now()}.`;
+  const createdUserIds = [];
 
   try {
     // Setup test users for each role
-    const superAdmin = await createUserWithRole('rbac.superadmin@example.com', 'SUPER_ADMIN');
-    const membershipAdmin = await createUserWithRole('rbac.membership@example.com', 'MEMBERSHIP_ADMIN');
-    const financeAdmin = await createUserWithRole('rbac.finance@example.com', 'FINANCE_ADMIN');
-    const eventsAdmin = await createUserWithRole('rbac.events@example.com', 'EVENTS_ADMIN');
-    const commsAdmin = await createUserWithRole('rbac.comms@example.com', 'COMMUNICATIONS_ADMIN');
-    const normalMember = await createUserWithRole('rbac.member@example.com', 'MEMBER');
+    const superAdmin = await createUserWithRole(`${testEmailPrefix}superadmin@example.com`, 'SUPER_ADMIN');
+    const membershipAdmin = await createUserWithRole(`${testEmailPrefix}membership@example.com`, 'MEMBERSHIP_ADMIN');
+    const financeAdmin = await createUserWithRole(`${testEmailPrefix}finance@example.com`, 'FINANCE_ADMIN');
+    const eventsAdmin = await createUserWithRole(`${testEmailPrefix}events@example.com`, 'EVENTS_ADMIN');
+    const commsAdmin = await createUserWithRole(`${testEmailPrefix}comms@example.com`, 'COMMUNICATIONS_ADMIN');
+    const normalMember = await createUserWithRole(`${testEmailPrefix}member@example.com`, 'MEMBER');
+    createdUserIds.push(superAdmin.user.id, membershipAdmin.user.id, financeAdmin.user.id, eventsAdmin.user.id, commsAdmin.user.id, normalMember.user.id);
 
     console.log('\n[1] Testing Unauthenticated Requests (401)...');
     const unauth = await request('/api/rbac-test/superadmin');
@@ -107,6 +110,9 @@ const runTests = async () => {
     console.log('Bad Token Response:', badToken.status, badToken.body);
     if (badToken.status !== 401) throw new Error('Bad token request should return 401');
 
+    const unauthenticatedMemberApi = await request('/api/membership/me');
+    if (unauthenticatedMemberApi.status !== 401) throw new Error('Member API should require authentication');
+
     console.log('\n[3] Testing SUPER_ADMIN Access (Full Pass)...');
     const superRes1 = await request('/api/rbac-test/superadmin', 'GET', null, superAdmin.token);
     const superRes2 = await request('/api/rbac-test/membership', 'GET', null, superAdmin.token);
@@ -117,6 +123,8 @@ const runTests = async () => {
     if (superRes1.status !== 200 || superRes2.status !== 200 || superRes3.status !== 200) {
       throw new Error('SUPER_ADMIN should have access to all routes');
     }
+    const superAdminMemberApi = await request('/api/membership/me', 'GET', null, superAdmin.token);
+    if (superAdminMemberApi.status !== 403) throw new Error('Member-only APIs should not treat admin roles as members');
 
     console.log('\n[4] Testing MEMBERSHIP_ADMIN Permissions...');
     const memRes1 = await request('/api/rbac-test/membership', 'GET', null, membershipAdmin.token);
@@ -126,6 +134,8 @@ const runTests = async () => {
     if (memRes1.status !== 200 || memRes2.status !== 403) {
       throw new Error('MEMBERSHIP_ADMIN permission check failed');
     }
+    const applicationAdminApi = await request('/api/admin/applications', 'GET', null, membershipAdmin.token);
+    if (applicationAdminApi.status !== 200) throw new Error('Membership admin should access the protected application API');
 
     console.log('\n[5] Testing FINANCE_ADMIN Permissions...');
     const finRes1 = await request('/api/rbac-test/finance', 'GET', null, financeAdmin.token);
@@ -135,6 +145,8 @@ const runTests = async () => {
     if (finRes1.status !== 200 || finRes2.status !== 403) {
       throw new Error('FINANCE_ADMIN permission check failed');
     }
+    const paymentAdminApi = await request('/api/admin/payments', 'GET', null, financeAdmin.token);
+    if (paymentAdminApi.status !== 200) throw new Error('Finance admin should access the protected payments API');
 
     console.log('\n[6] Testing EVENTS_ADMIN Permissions...');
     const eveRes1 = await request('/api/rbac-test/events', 'GET', null, eventsAdmin.token);
@@ -164,6 +176,12 @@ const runTests = async () => {
     if (memberSuper.status !== 403 || memberMem.status !== 403 || memberFin.status !== 403) {
       throw new Error('MEMBER must be denied access (403) on administrative routes');
     }
+    const memberAdminApplications = await request('/api/admin/applications', 'GET', null, normalMember.token);
+    const memberAdminPayments = await request('/api/admin/payments', 'GET', null, normalMember.token);
+    const ownMembership = await request('/api/membership/me', 'GET', null, normalMember.token);
+    if (memberAdminApplications.status !== 403 || memberAdminPayments.status !== 403 || ownMembership.status !== 200) {
+      throw new Error('Member/admin API authorization checks failed');
+    }
 
     console.log('\n[9] Testing Privilege Escalation (Forged Token Claim)...');
     // Forging a JWT token claiming 'SUPER_ADMIN' role in payload for a normal MEMBER user in DB
@@ -177,8 +195,9 @@ const runTests = async () => {
     console.log('\n✅ ALL RBAC & PERMISSION TESTS PASSED SUCCESSFULLY!');
   } finally {
     if (server) {
-      server.close();
+      await new Promise((resolve) => server.close(resolve));
     }
+    if (createdUserIds.length) await User.destroy({ where: { id: createdUserIds } });
   }
 };
 

@@ -10,26 +10,26 @@ const errorHandler = (err, req, res, next) => {
   if (err.name === 'SequelizeUniqueConstraintError') {
     return res.status(409).json({
       success: false,
-      message: err.errors && err.errors.length > 0 ? err.errors[0].message : 'Duplicate field value enterred',
+      message: 'A record with these details already exists.',
     });
   }
 
-  // Sequelize Database Error
-  if (err.name === 'SequelizeDatabaseError') {
+  if (err.name?.startsWith('Sequelize')) {
     return res.status(500).json({
       success: false,
-      message: 'A database error occurred.',
+      message: 'A database request could not be completed.',
     });
   }
 
   // Default Error Response
   const statusCode = err.statusCode || err.status || 500;
-  const message = err.message || 'Internal Server Error';
+  const message = statusCode >= 500
+    ? 'The server could not complete the request. Please try again later.'
+    : (err.message || 'The request could not be completed.');
 
   return res.status(statusCode).json({
     success: false,
     message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 };
 

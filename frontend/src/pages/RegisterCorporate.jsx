@@ -47,14 +47,14 @@ export default function RegisterCorporate() {
         try {
           await register({
             email: formData.invoicingEmail,
-            password: formData.password || 'Password123!',
+            password: formData.password,
             first_name: nameParts[0] || 'Corporate',
             last_name: nameParts.slice(1).join(' ') || 'Contact',
             phone: '',
           })
         } catch (regErr) {
           if (regErr.response?.status === 409) {
-            await login(formData.invoicingEmail, formData.password || 'Password123!')
+            await login(formData.invoicingEmail, formData.password)
           } else {
             throw regErr
           }
@@ -268,6 +268,7 @@ export default function RegisterCorporate() {
                       type="password"
                       name="password"
                       required={!isAuthenticated}
+                      minLength={8}
                       value={formData.password}
                       onChange={handleChange}
                       placeholder="At least 8 characters"

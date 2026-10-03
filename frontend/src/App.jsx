@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react'
 import CustomCursor from '@/components/ui/CustomCursor'
 import BackToTop from '@/components/ui/BackToTop'
 import { AuthProvider } from '@/context/AuthContext'
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
 
 // Public pages
 const Home = lazy(() => import('@/pages/Home'))
@@ -83,27 +84,31 @@ export default function App() {
           <Route path="/register/individual" element={<RegisterIndividual />} />
           <Route path="/register/corporate" element={<RegisterCorporate />} />
 
-          {/* Temporary frontend preview: portal routes are intentionally public. */}
-          <Route path="/member/dashboard" element={<MemberDashboard />} />
-          <Route path="/member/profile" element={<MemberProfile />} />
-          <Route path="/member/membership" element={<MemberMembership />} />
-          <Route path="/member/events" element={<MemberEvents />} />
-          <Route path="/member/payments" element={<MemberPayments />} />
-          <Route path="/member/directory" element={<MemberDirectory />} />
-          <Route path="/member/card" element={<MemberCard />} />
+          <Route element={<ProtectedRoute allowedRoles={['MEMBER']} allowSuperAdmin={false} />}>
+            <Route path="/member" element={<MemberDashboard />} />
+            <Route path="/member/dashboard" element={<MemberDashboard />} />
+            <Route path="/member/profile" element={<MemberProfile />} />
+            <Route path="/member/membership" element={<MemberMembership />} />
+            <Route path="/member/events" element={<MemberEvents />} />
+            <Route path="/member/payments" element={<MemberPayments />} />
+            <Route path="/member/directory" element={<MemberDirectory />} />
+            <Route path="/member/card" element={<MemberCard />} />
+          </Route>
 
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/applications" element={<AdminApplications />} />
-          <Route path="/admin/members" element={<AdminMembers />} />
-          <Route path="/admin/events" element={<AdminEvents />} />
-          <Route path="/admin/payments" element={<AdminPayments />} />
-          <Route path="/admin/communications" element={<AdminCommunications />} />
-          <Route path="/admin/reports" element={<AdminReports />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
-          <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={ADMIN_ROLES}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={ADMIN_ROLES}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/applications" element={<ProtectedRoute requiredPermissions={['applications.view', 'applications.read', 'applications.manage']}><AdminApplications /></ProtectedRoute>} />
+          <Route path="/admin/members" element={<ProtectedRoute requiredPermissions={['members.view', 'members.read', 'members.manage']}><AdminMembers /></ProtectedRoute>} />
+          <Route path="/admin/events" element={<ProtectedRoute requiredPermissions={['events.view', 'events.read', 'events.manage']}><AdminEvents /></ProtectedRoute>} />
+          <Route path="/admin/payments" element={<ProtectedRoute requiredPermissions={['payments.view', 'payments.read', 'payments.manage']}><AdminPayments /></ProtectedRoute>} />
+          <Route path="/admin/communications" element={<ProtectedRoute requiredPermissions={['communications.view', 'communications.read', 'communications.manage']}><AdminCommunications /></ProtectedRoute>} />
+          <Route path="/admin/reports" element={<ProtectedRoute requiredPermissions={['reports.view', 'reports.read']}><AdminReports /></ProtectedRoute>} />
+          <Route path="/admin/users" element={<ProtectedRoute requiredPermissions={['users.view', 'users.read', 'users.manage']}><AdminUsers /></ProtectedRoute>} />
+          <Route path="/admin/audit-logs" element={<ProtectedRoute requiredPermissions={['audit_logs.view', 'audit_logs.read']}><AdminAuditLogs /></ProtectedRoute>} />
         </Routes>
       </Suspense>
     </AuthProvider>
   )
 }
+
+const ADMIN_ROLES = ['SUPER_ADMIN', 'MEMBERSHIP_ADMIN', 'FINANCE_ADMIN', 'EVENTS_ADMIN', 'COMMUNICATIONS_ADMIN']

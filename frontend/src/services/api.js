@@ -12,9 +12,11 @@ const api = axios.create({
 // Request interceptor to attach JWT token if available
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('wista_token')
+    const token = localStorage.getItem('wista_token')?.trim()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    } else if (config.headers?.Authorization) {
+      delete config.headers.Authorization
     }
     return config
   },
@@ -27,9 +29,15 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       // Clear invalid token if request failed with 401 (except for login route itself)
-      const isLoginRequest = error.config && error.config.url && error.config.url.includes('/auth/login')
-      if (!isLoginRequest) {
+      const requestUrl = error.config?.url || ''
+      const isPublicAuthRequest = /\/auth\/(login|register)(?:\?|$)/.test(requestUrl)
+      if (!isPublicAuthRequest) {
         localStorage.removeItem('wista_token')
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('wista:auth-invalid', {
+            detail: { message: 'Your session expired or is no longer valid. Please sign in again.' },
+          }))
+        }
       }
     }
     return Promise.reject(error)

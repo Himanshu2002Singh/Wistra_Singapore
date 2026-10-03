@@ -2,9 +2,14 @@
 
 /**
  * Authorization middleware to restrict route access by role.
- * @param {...string} allowedRoles
+ * @param {...(string|{allowSuperAdmin?: boolean})} allowedRoles
  */
-const requireRole = (...allowedRoles) => {
+const requireRole = (...roleArguments) => {
+  const lastArgument = roleArguments[roleArguments.length - 1];
+  const options = lastArgument && typeof lastArgument === 'object' ? lastArgument : null;
+  const allowSuperAdmin = options?.allowSuperAdmin !== false;
+  const allowedRoles = options ? roleArguments.slice(0, -1) : roleArguments;
+
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
@@ -16,7 +21,7 @@ const requireRole = (...allowedRoles) => {
     const userRole = req.user.role ? req.user.role.name : null;
 
     // SUPER_ADMIN has full administrative access across all role checks
-    if (userRole === 'SUPER_ADMIN') {
+    if (allowSuperAdmin && userRole === 'SUPER_ADMIN') {
       return next();
     }
 
