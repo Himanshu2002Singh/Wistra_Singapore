@@ -1,0 +1,131 @@
+:root {
+  --public-topbar-height: 34px;
+}
+
+.public-topbar-spacer {
+  height: var(--public-topbar-height);
+}
+
+.public-topbar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 110;
+  height: var(--public-topbar-height);
+  border-bottom: 1px solid rgba(255, 255, 255, .1);
+  background: #0f2d52;
+  color: #e5eff6;
+}
+
+.public-topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  width: 100%;
+  height: 100%;
+  padding: 0 clamp(20px, 3vw, 48px);
+}
+
+.public-topbar-contact,
+.public-topbar-socials {
+  display: flex;
+  align-items: center;
+}
+
+.public-topbar-contact {
+  min-width: 0;
+}
+
+.public-topbar-address {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  color: rgba(229, 239, 246, .82);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: .01em;
+  line-height: 1.2;
+}
+
+.public-topbar-address svg {
+  flex: 0 0 auto;
+}
+
+.public-topbar-address span {
+  min-width: 0;
+}
+
+.public-topbar-socials {
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.public-topbar-socials a {
+  display: grid;
+  width: 20px;
+  height: 24px;
+  place-items: center;
+  border-radius: 3px;
+  color: rgba(229, 239, 246, .88);
+  transition: color .2s ease;
+}
+
+.public-topbar-socials a:hover {
+  color: #fff;
+}
+
+.public-topbar-socials svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.public-topbar a:focus-visible {
+  outline: 2px solid #88d2d8;
+  outline-offset: 2px;
+}
+
+@media (max-width: 1023px) {
+  .public-topbar-inner {
+    padding-inline: 5vw;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1023px) {
+  .homepage-hero-shell .public-topbar-inner {
+    padding-inline: clamp(18px, 3vw, 52px);
+  }
+}
+
+@media (max-width: 620px) {
+  .public-topbar-inner {
+    gap: 8px;
+    padding-inline: 5vw;
+  }
+
+  .homepage-hero-shell .public-topbar-inner {
+    padding-inline: 5vw;
+  }
+
+  .public-topbar-address {
+    width: 100%;
+  }
+
+  .public-topbar-address span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .public-topbar-socials {
+    gap: 6px;
+  }
+
+  .public-topbar-socials a {
+    width: 18px;
+  }
+}

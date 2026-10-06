@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import MemberLayout from '@/components/member/MemberLayout';
-import { getMyMembershipApi } from '@/services/memberService';
+import { getMyActivityApi, getMyMembershipApi } from '@/services/memberService';
 import { getMyApplicationsApi } from '@/services/membershipService';
 import { getMyPaymentsApi } from '@/services/paymentService';
 import { useAuth } from '@/context/AuthContext';
@@ -28,33 +28,66 @@ export default function Dashboard() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [activity, setActivity] = useState([]);
+  const [activityPagination, setActivityPagination] = useState({ page: 1, pageSize: 5, total: 0, totalPages: 0, hasNext: false, hasPrevious: false });
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState(false);
 
   const fetchDashboard = async () => {
     setLoading(true);
     setLoadError(false);
+    setMembershipData(null);
+    setApplications([]);
     const results = await Promise.allSettled([
       getMyMembershipApi(),
       getMyApplicationsApi(),
       getMyPaymentsApi(),
     ]);
     let loaded = false;
+    let coreDataLoaded = true;
     if (results[0].status === 'fulfilled' && results[0].value?.success) {
       setMembershipData(results[0].value.data);
       loaded = true;
+    } else {
+      setMembershipData(null);
+      coreDataLoaded = false;
     }
     if (results[1].status === 'fulfilled' && results[1].value?.success) {
       setApplications(results[1].value.data?.applications || []);
       loaded = true;
+    } else {
+      setApplications([]);
+      coreDataLoaded = false;
     }
     if (results[2].status === 'fulfilled' && results[2].value?.success) {
       setPayments(results[2].value.data || []);
       loaded = true;
     }
-    setLoadError(!loaded);
+    setLoadError(!loaded || !coreDataLoaded);
     setLoading(false);
   };
 
   useEffect(() => { fetchDashboard(); }, []);
+
+  const fetchActivity = useCallback(async () => {
+    setActivityLoading(true);
+    setActivityError(false);
+    try {
+      const response = await getMyActivityApi({ page: activityPage, pageSize: 5 });
+      if (!response?.success) throw new Error('Activity request failed');
+      setActivity(response.data?.activities || []);
+      setActivityPagination(response.data?.pagination || { page: activityPage, pageSize: 5, total: 0, totalPages: 0, hasNext: false, hasPrevious: false });
+    } catch {
+      setActivity([]);
+      setActivityPagination({ page: activityPage, pageSize: 5, total: 0, totalPages: 0, hasNext: false, hasPrevious: false });
+      setActivityError(true);
+    } finally {
+      setActivityLoading(false);
+    }
+  }, [activityPage]);
+
+  useEffect(() => { fetchActivity(); }, [fetchActivity]);
 
   const dash = membershipData?.dashboard || {};
   const member = membershipData?.user || user || {};
@@ -69,6 +102,11 @@ export default function Dashboard() {
   const formatDate = (value) => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not available';
   const paymentAmount = latestPayment?.invoice?.total ?? latestPayment?.amount;
   const paymentCurrency = latestPayment?.invoice?.currency || latestPayment?.currency || 'SGD';
+  const activityLabel = (item) => {
+    if (!item.oldStatus && item.type === 'application' && item.newStatus === 'PENDING') return 'Application submitted';
+    const subject = item.type === 'application' ? 'Application' : 'Membership';
+    return `${subject} status changed${item.oldStatus ? ` from ${item.oldStatus.replaceAll('_', ' ')}` : ''} to ${item.newStatus.replaceAll('_', ' ')}`;
+  };
 
   return (
     <MemberLayout>
@@ -134,6 +172,39 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+          </section>
+
+          <section aria-labelledby="member-activity-heading" className="bg-[#071626] border border-white/10 rounded-xl p-6 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4 mb-4">
+              <div>
+                <h3 id="member-activity-heading" className="text-xs font-bold tracking-[0.2em] uppercase text-[#5ee5e9]">RECENT ACTIVITY</h3>
+                <p className="text-xs text-slate-400 mt-1">Application and membership status history for your account.</p>
+              </div>
+              {activityPagination.total > 0 && <span className="text-[11px] text-slate-400">{activityPagination.total} updates</span>}
+            </div>
+            {activityLoading ? (
+              <p role="status" className="text-sm text-slate-300">Loading your activity…</p>
+            ) : activityError ? (
+              <div role="alert" className="text-sm text-red-200">We could not load your activity. <button onClick={fetchActivity} className="underline font-semibold">Try again</button></div>
+            ) : activity.length === 0 ? (
+              <p className="text-sm text-slate-400">No activity is available yet.</p>
+            ) : (
+              <>
+                <ol className="divide-y divide-white/10">
+                  {activity.map((item) => (
+                    <li key={item.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                      <span className="text-sm text-white">{activityLabel(item)}</span>
+                      <time className="text-xs text-slate-400 shrink-0" dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
+                    </li>
+                  ))}
+                </ol>
+                <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/10">
+                  <button type="button" disabled={!activityPagination.hasPrevious || activityLoading} onClick={() => setActivityPage((page) => Math.max(1, page - 1))} className="text-xs text-[#5ee5e9] disabled:text-slate-500 disabled:cursor-not-allowed">Previous</button>
+                  <span className="text-[11px] text-slate-400">Page {activityPagination.page} of {Math.max(1, activityPagination.totalPages)}</span>
+                  <button type="button" disabled={!activityPagination.hasNext || activityLoading} onClick={() => setActivityPage((page) => page + 1)} className="text-xs text-[#5ee5e9] disabled:text-slate-500 disabled:cursor-not-allowed">Next</button>
+                </div>
+              </>
+            )}
           </section>
 
 

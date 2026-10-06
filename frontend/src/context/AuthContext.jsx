@@ -63,11 +63,15 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('wista:auth-invalid', handleInvalidSession)
   }, [])
 
-  const login = async (email, password) => {
+  const login = async (email, password, { adminRole } = {}) => {
     setError(null)
     setAuthError(null)
     try {
-      const res = await loginApi({ email, password })
+      const res = await loginApi({
+        email,
+        password,
+        ...(adminRole ? { admin_role: adminRole } : {}),
+      })
       if (res && res.success && res.data && res.data.token) {
         const authToken = res.data.token
         const userData = res.data.user

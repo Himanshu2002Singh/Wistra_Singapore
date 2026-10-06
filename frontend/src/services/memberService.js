@@ -5,6 +5,11 @@ export const getMyMembershipApi = async () => {
   return response.data
 }
 
+export const getMyActivityApi = async ({ page = 1, pageSize = 5 } = {}) => {
+  const response = await api.get('/membership/activity/me', { params: { page, pageSize } })
+  return response.data
+}
+
 export const updateMyProfileApi = async (profileData) => {
   const response = await api.patch('/membership/profile', profileData)
   return response.data
@@ -37,5 +42,10 @@ export const reactivateMembershipApi = async (id) => {
 
 export const cancelMembershipApi = async (id, cancellation_reason) => {
   const response = await api.patch(`/admin/memberships/${id}/cancel`, { cancellation_reason })
+  return response.data
+}
+
+export const processExpiredMembershipsApi = async () => {
+  const response = await api.post('/admin/memberships/process-expiry')
   return response.data
 }

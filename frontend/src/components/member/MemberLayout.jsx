@@ -20,6 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 const MemberLayout = ({ children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -81,19 +82,30 @@ const MemberLayout = ({ children }) => {
         {/* Right Side: Notification, Status Badge, User Avatar */}
         <div className="flex items-center gap-3 sm:gap-6">
           {/* Notification Icon */}
+          <div className="relative">
           <button 
+            type="button"
             className="relative p-2 text-slate-300 hover:text-white transition cursor-pointer"
             title="Notifications"
-            onClick={() => alert('No new unread notifications.')}
+            aria-label="Notifications"
+            aria-expanded={notificationOpen}
+            aria-controls="member-notifications-panel"
+            onClick={() => { setNotificationOpen((open) => !open); setUserDropdownOpen(false); }}
           >
             <Bell size={20} />
-            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-[#e85d4a]" />
           </button>
+          {notificationOpen && (
+            <div id="member-notifications-panel" role="status" className="absolute right-0 mt-2 w-72 rounded-lg border border-white/15 bg-[#0c243b] p-4 shadow-2xl z-50 text-xs">
+              <p className="font-semibold text-white">Notifications aren’t available yet.</p>
+              <p className="mt-1 text-slate-400">There is no notification service connected to this account.</p>
+            </div>
+          )}
+          </div>
 
           {/* Active Status Badge */}
-          <span className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wider bg-[#59D781]/15 text-[#59D781] border border-[#59D781]/30 uppercase">
-            <span className="w-2 h-2 rounded-full bg-[#59D781] animate-pulse" />
-            STATUS: ACTIVE
+          <span className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wider bg-white/5 text-slate-200 border border-white/15 uppercase">
+            <span className="w-2 h-2 rounded-full bg-[#5ee5e9]" />
+            SIGNED IN
           </span>
 
           {/* User Profile Pill */}
@@ -116,7 +128,7 @@ const MemberLayout = ({ children }) => {
               <div className="absolute right-0 mt-2 w-52 bg-[#0c243b] border border-white/15 rounded-lg shadow-2xl py-2 z-50 animate-fade-in text-xs">
                 <div className="px-4 py-2 border-b border-white/10">
                   <p className="font-semibold text-white truncate">{displayName}</p>
-                  <p className="text-[10px] text-slate-400 truncate">{user?.email || 'member@wista.sg'}</p>
+                  <p className="text-[10px] text-slate-400 truncate">{user?.email || 'Email unavailable'}</p>
                 </div>
                 <Link 
                   to="/member/profile" 

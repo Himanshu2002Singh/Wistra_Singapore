@@ -5,6 +5,35 @@ const { hashPassword, comparePassword } = require('../utils/password');
 const { generateToken } = require('../utils/jwt');
 const { validateRegister, validateLogin } = require('../validators/authValidator');
 
+const isAdministrativeRole = (roleName) =>
+  roleName === 'SUPER_ADMIN' || (typeof roleName === 'string' && roleName.endsWith('_ADMIN'));
+
+const isAdministrativePermission = (permissionName) =>
+  /^(applications|members|membership|memberships|payments|invoices|events|registrations|attendance|communications|news|campaigns|reports|audit_logs|users)\./.test(permissionName);
+
+const getAdminRoles = async (req, res, next) => {
+  try {
+    const roles = await Role.findAll({
+      include: [{
+        model: Permission,
+        as: 'permissions',
+        attributes: ['name'],
+        through: { attributes: [] },
+      }],
+      order: [['name', 'ASC']],
+    });
+
+    const availableRoles = roles
+      .filter((role) => isAdministrativeRole(role.name))
+      .filter((role) => role.name === 'SUPER_ADMIN' || role.permissions.some(({ name }) => isAdministrativePermission(name)))
+      .map(({ name, description }) => ({ name, description }));
+
+    return res.json({ success: true, data: { roles: availableRoles } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 /**
  * Register a new platform user.
  * Public registration assigns default 'MEMBER' role and prevents admin role escalation.
@@ -46,15 +75,27 @@ const register = async (req, res, next) => {
     const password_hash = await hashPassword(password);
 
     // Create user record
-    const user = await User.create({
-      email,
-      password_hash,
-      first_name,
-      last_name,
-      phone,
-      role_id: roleId,
-      status: 'ACTIVE',
-    });
+    let user;
+    try {
+      user = await User.create({
+        email,
+        password_hash,
+        first_name,
+        last_name,
+        phone,
+        role_id: roleId,
+        status: 'ACTIVE',
+      });
+    } catch (error) {
+      // The database unique constraint remains authoritative if two registrations race.
+      if (error.name === 'SequelizeUniqueConstraintError') {
+        return res.status(409).json({
+          success: false,
+          message: 'Email address is already registered.',
+        });
+      }
+      throw error;
+    }
 
     // Fetch newly created user with Role association for clean response
     const createdUser = await User.findByPk(user.id, {
@@ -103,6 +144,11 @@ const register = async (req, res, next) => {
  */
 const login = async (req, res, next) => {
   try {
+    const requestedAdminRole = req.body?.admin_role;
+    if (requestedAdminRole !== undefined && (typeof requestedAdminRole !== 'string' || !isAdministrativeRole(requestedAdminRole.trim()))) {
+      return res.status(400).json({ success: false, message: 'Select a valid administrative role.' });
+    }
+
     const { isValid, errors, normalizedData } = validateLogin(req.body);
 
     if (!isValid) {
@@ -158,6 +204,27 @@ const login = async (req, res, next) => {
         success: false,
         message: 'Invalid email or password.',
       });
+    }
+
+    const actualRole = user.role?.name;
+    if (requestedAdminRole === undefined && isAdministrativeRole(actualRole)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Administrator accounts must sign in through the admin access gateway.',
+      });
+    }
+
+    if (requestedAdminRole !== undefined) {
+      const assignedPermissions = user.role?.permissions?.map(({ name }) => name) || [];
+      const hasAdministrativePermission = actualRole === 'SUPER_ADMIN'
+        || assignedPermissions.some(isAdministrativePermission);
+
+      if (actualRole !== requestedAdminRole.trim() || !isAdministrativeRole(actualRole) || !hasAdministrativePermission) {
+        return res.status(403).json({
+          success: false,
+          message: 'This account is not authorized for the selected administrative role.',
+        });
+      }
     }
 
     // Update last_login_at
@@ -218,6 +285,7 @@ const logout = async (req, res, next) => {
 };
 
 module.exports = {
+  getAdminRoles,
   register,
   login,
   getMe,

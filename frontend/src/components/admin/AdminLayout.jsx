@@ -1,24 +1,25 @@
 import React, { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BarChart3, Bell, CalendarDays, ChevronDown, FileText, LayoutDashboard, LogOut, Menu, MessageSquare, ShieldCheck, Users, WalletCards, X } from 'lucide-react'
+import { ArrowLeft, BarChart3, Bell, CalendarDays, ChevronDown, FileText, LayoutDashboard, LogOut, Menu, Newspaper, ShieldCheck, Users, WalletCards, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { hasModulePermission } from '@/config/adminAccess'
 
 const navigation = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/admin/applications', label: 'Applications', icon: FileText },
-  { to: '/admin/members', label: 'Members', icon: Users },
-  { to: '/admin/payments', label: 'Payments', icon: WalletCards },
-  { to: '/admin/events', label: 'Events', icon: CalendarDays },
-  { to: '/admin/communications', label: 'Communications', icon: MessageSquare },
-  { to: '/admin/reports', label: 'Reports', icon: BarChart3 },
-  { to: '/admin/users', label: 'Users & Roles', icon: ShieldCheck },
-  { to: '/admin/audit-logs', label: 'Audit Logs', icon: ShieldCheck },
+  { to: '/admin/applications', label: 'Applications', module: 'Applications', icon: FileText },
+  { to: '/admin/members', label: 'Memberships', module: 'Members', icon: Users },
+  { to: '/admin/payments', label: 'Payments', module: 'Payments', icon: WalletCards },
+  { to: '/admin/events', label: 'Events', module: 'Events', icon: CalendarDays },
+  { to: '/admin/news', label: 'News', module: 'News', icon: Newspaper },
+  { to: '/admin/reports', label: 'Reports', module: 'Reports', icon: BarChart3 },
+  { to: '/admin/users', label: 'Team and Roles', module: 'Users & Roles', icon: ShieldCheck },
+  { to: '/admin/audit-logs', label: 'Audit Logs', module: 'Audit Logs', icon: ShieldCheck },
 ]
 
 const pageNames = {
   '/admin': 'Dashboard', '/admin/dashboard': 'Dashboard', '/admin/applications': 'Applications',
-  '/admin/members': 'Members', '/admin/payments': 'Payments', '/admin/events': 'Events',
-  '/admin/communications': 'Communications', '/admin/reports': 'Reports', '/admin/users': 'Users & Roles', '/admin/audit-logs': 'Audit Logs',
+  '/admin/members': 'Memberships', '/admin/payments': 'Payments', '/admin/events': 'Events',
+  '/admin/news': 'News', '/admin/communications': 'News', '/admin/reports': 'Reports', '/admin/users': 'Team and Roles', '/admin/audit-logs': 'Audit Logs',
 }
 
 export default function AdminLayout({ children }) {
@@ -32,8 +33,9 @@ export default function AdminLayout({ children }) {
   const initials = user?.first_name ? `${user.first_name[0]}${user.last_name?.[0] || ''}`.toUpperCase() : 'AD'
   const role = user?.role?.name || user?.role || 'ADMINISTRATOR'
 
-  const handleLogout = async () => { await logout(); navigate('/login') }
+  const handleLogout = async () => { await logout(); navigate('/admin', { replace: true }) }
   const closeMobileMenu = () => setMobileMenuOpen(false)
+  const visibleNavigation = navigation.filter(({ module }) => !module || hasModulePermission(user, module))
 
   return (
     <div className="wista-admin-shell">
@@ -60,7 +62,7 @@ export default function AdminLayout({ children }) {
         <aside className={`admin-sidebar ${mobileMenuOpen ? 'is-open' : ''}`} aria-label="Admin navigation">
           <nav className="admin-navigation">
             <p className="admin-nav-label">Operations</p>
-            {navigation.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} onClick={closeMobileMenu} className={({ isActive }) => `admin-nav-link${isActive ? ' is-active' : ''}`}><Icon size={18} aria-hidden="true" /><span>{label}</span></NavLink>)}
+            {visibleNavigation.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} onClick={closeMobileMenu} className={({ isActive }) => `admin-nav-link${isActive ? ' is-active' : ''}`}><Icon size={18} aria-hidden="true" /><span>{label}</span></NavLink>)}
           </nav>
           <div className="admin-sidebar-bottom">
             <Link to="/" className="admin-nav-link"><ArrowLeft size={17} aria-hidden="true" /><span>Public Website</span></Link>

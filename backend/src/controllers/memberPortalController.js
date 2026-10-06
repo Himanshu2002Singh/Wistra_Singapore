@@ -3,6 +3,8 @@
 const {
   sequelize,
   Membership,
+  MembershipApplication,
+  MembershipStatusHistory,
   User,
   IndividualProfile,
   CorporateProfile,
@@ -10,8 +12,70 @@ const {
   Payment,
   Invoice,
   DirectoryPrivacySettings,
+  AuditLog,
 } = require('../models');
 const { getEffectiveMembershipStatus } = require('../services/membershipActivationService');
+const { Op } = require('sequelize');
+
+const toMemberIdentity = (user) => ({
+  id: user.id,
+  first_name: user.first_name,
+  last_name: user.last_name,
+  email: user.email,
+  phone: user.phone,
+  profile_photo: user.profile_photo,
+});
+
+/** Return only status history tied to records owned by the authenticated member. */
+const getMyActivity = async (req, res, next) => {
+  try {
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const requestedPageSize = Number.parseInt(req.query.pageSize, 10) || 10;
+    const pageSize = Math.min(50, Math.max(1, requestedPageSize));
+    const userId = req.user.id;
+
+    const [applications, memberships] = await Promise.all([
+      MembershipApplication.findAll({ where: { user_id: userId }, attributes: ['id'], raw: true }),
+      Membership.findAll({ where: { user_id: userId }, attributes: ['id'], raw: true }),
+    ]);
+    const ownershipFilters = [];
+    if (applications.length) ownershipFilters.push({ application_id: { [Op.in]: applications.map(({ id }) => id) } });
+    if (memberships.length) ownershipFilters.push({ membership_id: { [Op.in]: memberships.map(({ id }) => id) } });
+
+    const where = ownershipFilters.length ? { [Op.or]: ownershipFilters } : { id: { [Op.eq]: null } };
+    const { count, rows } = await MembershipStatusHistory.findAndCountAll({
+      where,
+      attributes: ['id', 'application_id', 'membership_id', 'old_status', 'new_status', 'created_at'],
+      order: [['created_at', 'DESC'], ['id', 'DESC']],
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+    });
+    const totalPages = Math.ceil(count / pageSize);
+
+    return res.json({
+      success: true,
+      data: {
+        activities: rows.map((row) => ({
+          id: row.id,
+          type: row.application_id ? 'application' : 'membership',
+          oldStatus: row.old_status,
+          newStatus: row.new_status,
+          createdAt: row.created_at,
+        })),
+        pagination: {
+          page,
+          pageSize,
+          total: count,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrevious: page > 1,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
  * Get authenticated user's current membership info, digital card payload, and dashboard summary.
@@ -29,10 +93,18 @@ const getMyMembership = async (req, res, next) => {
       ],
     });
 
-    const individualProfile = await IndividualProfile.findOne({ where: { user_id: userId } });
+    const individualProfile = await IndividualProfile.findOne({
+      where: { user_id: userId },
+      attributes: ['company', 'designation', 'biography', 'linkedin_url', 'photo_url'],
+    });
     const corporateProfile = await CorporateProfile.findOne({
       where: { user_id: userId },
-      include: [{ model: CorporateRepresentative, as: 'representatives' }],
+      attributes: ['id', 'company_name', 'company_description', 'website'],
+      include: [{
+        model: CorporateRepresentative,
+        as: 'representatives',
+        attributes: ['id', 'user_id', 'designation', 'is_primary'],
+      }],
     });
     const privacySettings = await DirectoryPrivacySettings.findOne({ where: { user_id: userId } });
 
@@ -43,7 +115,7 @@ const getMyMembership = async (req, res, next) => {
           has_membership: false,
           effective_status: 'INACTIVE',
           membership: null,
-          user: req.user,
+          user: toMemberIdentity(req.user),
           privacySettings,
           profiles: {
             individual: individualProfile,
@@ -101,6 +173,7 @@ const getMyMembership = async (req, res, next) => {
         has_membership: true,
         effective_status: effectiveStatus,
         membership,
+        user: toMemberIdentity(req.user),
         card: digitalCard,
         dashboard: dashboardSummary,
         privacySettings,
@@ -147,7 +220,10 @@ const updateMyProfile = async (req, res, next) => {
       updates.phone = typeof body.phone === 'string' ? (body.phone.trim() || null) : null;
     }
 
-    const privacyFields = ['show_email', 'show_phone', 'show_company'];
+    const privacyFields = [
+      'show_email', 'show_phone', 'show_company', 'show_designation',
+      'show_bio', 'show_linkedin', 'show_photo',
+    ];
     if (privacy !== undefined) {
       if (!privacy || typeof privacy !== 'object' || Array.isArray(privacy)) {
         return res.status(400).json({ success: false, message: 'privacy must be an object of directory visibility settings.' });
@@ -173,6 +249,15 @@ const updateMyProfile = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Member account was not found.' });
     }
 
+    const oldValues = {};
+    const newValues = {};
+    for (const [field, value] of Object.entries(updates)) {
+      if (user[field] !== value) {
+        oldValues[field] = user[field];
+        newValues[field] = value;
+      }
+    }
+
     Object.assign(user, updates);
     if (hasUserFields) await user.save({ transaction });
 
@@ -183,18 +268,35 @@ const updateMyProfile = async (req, res, next) => {
         privacySettings = await DirectoryPrivacySettings.create({ user_id: req.user.id }, { transaction });
       }
       for (const field of privacyFields) {
-        if (Object.prototype.hasOwnProperty.call(privacy, field)) privacySettings[field] = privacy[field];
+        if (!Object.prototype.hasOwnProperty.call(privacy, field)) continue;
+        if (privacySettings[field] !== privacy[field]) {
+          oldValues[field] = privacySettings[field];
+          newValues[field] = privacy[field];
+        }
+        privacySettings[field] = privacy[field];
       }
       await privacySettings.save({ transaction });
     }
 
+    if (Object.keys(newValues).length) {
+      await AuditLog.create({
+        user_id: req.user.id,
+        action: 'PROFILE_UPDATED',
+        module: 'MEMBER_PROFILE',
+        entity_type: 'User',
+        entity_id: String(user.id),
+        old_values: oldValues,
+        new_values: newValues,
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent'),
+      }, { transaction });
+    }
+
     await transaction.commit();
-    const safeUser = user.toJSON();
-    delete safeUser.password_hash;
     return res.json({
       success: true,
       message: 'Profile changes saved.',
-      data: { user: safeUser, privacySettings },
+      data: { user: toMemberIdentity(user), privacySettings },
     });
   } catch (error) {
     if (transaction && !transaction.finished) await transaction.rollback();
@@ -203,6 +305,7 @@ const updateMyProfile = async (req, res, next) => {
 };
 
 module.exports = {
+  getMyActivity,
   getMyMembership,
   updateMyProfile,
 };

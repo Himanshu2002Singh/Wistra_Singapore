@@ -7,6 +7,19 @@ import { useAuth } from '@/context/AuthContext'
 import { submitApplicationApi } from '@/services/membershipService'
 import individualHeroBg from '../assets/images/wista/membership/membership-mentoring.jpg'
 
+const getSubmissionError = (error) => {
+  const status = error.response?.status
+  const details = Object.values(error.response?.data?.errors || {}).filter((value) => typeof value === 'string')
+  if (details.length) return details.join(' ')
+  if (status === 401) return 'Your session has expired. Sign in again, then resubmit your application.'
+  if (status === 403) return 'This account is not allowed to submit a membership application.'
+  if (status === 409) return error.response?.data?.message || 'An application is already in progress for this account.'
+  if (status >= 500) return 'The registration service is temporarily unavailable. Please try again later.'
+  if (!error.response && error.message && error.message !== 'Network Error' && !error.message.startsWith('Request failed with status code')) return error.message
+  if (!error.response) return 'Could not reach the registration service. Check your connection and try again.'
+  return error.response?.data?.message || 'Please check your details and try again.'
+}
+
 export default function RegisterIndividual() {
   const [formData, setFormData] = useState({
     firstName: '',
@@ -72,6 +85,7 @@ export default function RegisterIndividual() {
         invoicing_address: formData.invoicingAddress,
         nationality: formData.nationality || null,
         date_of_birth: formData.dateOfBirth || null,
+        phone: formData.mobileNumber,
       })
 
       if (appRes && appRes.success && appRes.data) {
@@ -84,8 +98,7 @@ export default function RegisterIndividual() {
       }
     } catch (err) {
       setLoading(false)
-      const msg = err.response?.data?.message || err.message || 'Submission failed. Please check your details.'
-      setErrorMessage(msg)
+      setErrorMessage(getSubmissionError(err))
     }
   }
 

@@ -186,8 +186,86 @@ const activateMembership = async ({ applicationId, adminId, transaction: externa
   }
 };
 
+/**
+ * Batch process memberships that have passed their end_date and transition them from ACTIVE to EXPIRED.
+ *
+ * @param {Object} [params]
+ * @param {number|null} [params.adminId=null]
+ * @param {Object} [params.transaction]
+ * @returns {Promise<{ processedCount: number, expiredIds: Array<number> }>}
+ */
+const processExpiredMemberships = async ({ adminId = null, transaction: externalTx } = {}) => {
+  const transaction = externalTx || (await sequelize.transaction());
+  const isSelfManagedTx = !externalTx;
+
+  try {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const expiredCandidates = await Membership.findAll({
+      where: {
+        status: 'ACTIVE',
+        end_date: {
+          [Op.lt]: todayStr,
+        },
+      },
+      transaction,
+    });
+
+    const expiredIds = [];
+
+    for (const membership of expiredCandidates) {
+      const oldStatus = membership.status;
+      membership.status = 'EXPIRED';
+      await membership.save({ transaction });
+
+      await MembershipStatusHistory.create(
+        {
+          membership_id: membership.id,
+          application_id: membership.application_id,
+          old_status: oldStatus,
+          new_status: 'EXPIRED',
+          changed_by: adminId,
+          reason: `Membership expired. Validity period ended on ${membership.end_date}.`,
+        },
+        { transaction }
+      );
+
+      await AuditLog.create(
+        {
+          user_id: adminId,
+          action: 'MEMBERSHIP_EXPIRED',
+          module: 'MEMBERSHIP',
+          entity_type: 'Membership',
+          entity_id: String(membership.id),
+          old_values: { status: oldStatus },
+          new_values: { status: 'EXPIRED', end_date: membership.end_date },
+          ip_address: '127.0.0.1',
+        },
+        { transaction }
+      );
+
+      expiredIds.push(membership.id);
+    }
+
+    if (isSelfManagedTx) {
+      await transaction.commit();
+    }
+
+    return {
+      processedCount: expiredIds.length,
+      expiredIds,
+    };
+  } catch (error) {
+    if (isSelfManagedTx) {
+      await transaction.rollback();
+    }
+    throw error;
+  }
+};
+
 module.exports = {
   calculateMembershipPeriod,
   getEffectiveMembershipStatus,
   activateMembership,
+  processExpiredMemberships,
 };
+

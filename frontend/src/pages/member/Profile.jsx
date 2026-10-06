@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getMyMembershipApi, updateMyProfileApi } from '@/services/memberService';
 
 const Profile = () => {
-  const { user: authenticatedUser } = useAuth();
+  const { checkAuth } = useAuth();
 
   const [formData, setFormData] = useState(null);
   const [profilePhoto, setProfilePhoto] = useState(null);
@@ -24,7 +24,7 @@ const Profile = () => {
       if (!response?.success || !response.data) throw new Error('profile_unavailable');
 
       const { data } = response;
-      const currentUser = data.user || authenticatedUser || {};
+      const currentUser = data.user || {};
       const individual = data.profiles?.individual;
       const corporate = data.profiles?.corporate;
       const representative = corporate?.representatives?.find((item) => String(item.user_id) === String(currentUser.id))
@@ -43,17 +43,23 @@ const Profile = () => {
         showEmail: privacy?.show_email ?? true,
         showPhone: privacy?.show_phone ?? false,
         showCompany: privacy?.show_company ?? true,
+        showDesignation: privacy?.show_designation ?? true,
+        showBio: privacy?.show_bio ?? true,
+        showLinkedin: privacy?.show_linkedin ?? true,
+        showPhoto: privacy?.show_photo ?? true,
       });
       setProfilePhoto(currentUser.profile_photo || individual?.photo_url || null);
       setMemberType(data.membership?.membership_type || (individual ? 'INDIVIDUAL' : corporate ? 'CORPORATE' : null));
     } catch (error) {
-      setLoadError(error.response?.status === 404
-        ? 'Your member profile could not be found.'
-        : 'We could not load your profile. Check your connection and try again.');
+      const status = error.response?.status;
+      if (status === 401) setLoadError('Your session has expired. Please sign in again.');
+      else if (status === 403) setLoadError('You are not authorized to view this profile.');
+      else if (status === 404) setLoadError('Your member profile could not be found.');
+      else setLoadError('We could not load your profile. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
-  }, [authenticatedUser]);
+  }, []);
 
   useEffect(() => {
     loadProfile();
@@ -81,19 +87,38 @@ const Profile = () => {
           show_email: formData.showEmail,
           show_phone: formData.showPhone,
           show_company: formData.showCompany,
+          show_designation: formData.showDesignation,
+          show_bio: formData.showBio,
+          show_linkedin: formData.showLinkedin,
+          show_photo: formData.showPhoto,
         },
       });
       if (!response?.success) throw new Error('save_failed');
+      await loadProfile();
+      await checkAuth();
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 4000);
-    } catch {
-      setSaveError('We could not save your profile. Please try again.');
+    } catch (error) {
+      const status = error.response?.status;
+      if (status === 401) setSaveError('Your session has expired. Please sign in again.');
+      else if (status === 403) setSaveError('You are not authorized to update this account.');
+      else if (status === 400 || status === 409) setSaveError(error.response?.data?.message || 'Please check the information and try again.');
+      else setSaveError('We could not save your profile. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
   const initials = `${formData?.firstName?.[0] || ''}${formData?.lastName?.[0] || ''}`.toUpperCase() || 'WM';
+  const privacyControls = [
+    { name: 'showEmail', label: 'Show email address in directory' },
+    { name: 'showPhone', label: 'Show mobile phone number in directory' },
+    { name: 'showCompany', label: 'Show company in directory' },
+    { name: 'showDesignation', label: 'Show designation in directory' },
+    { name: 'showBio', label: 'Show biography in directory' },
+    { name: 'showLinkedin', label: 'Show LinkedIn profile in directory' },
+    { name: 'showPhoto', label: 'Show profile photo in directory' },
+  ];
 
   return (
     <MemberLayout>
@@ -268,38 +293,20 @@ const Profile = () => {
                 <Shield size={14} />
                 <span>03. Directory Privacy Settings</span>
               </h3>
-              <p className="text-xs text-slate-300">Control what information is visible to other members in the WISTA Member Directory.</p>
+              <p className="text-xs text-slate-300">Choose which profile fields may be shown in the member directory. These preferences are saved to your account.</p>
               <div className="space-y-3 pt-2">
-                <label className="flex items-center gap-3 cursor-pointer text-xs text-slate-200">
-                  <input 
-                    type="checkbox" 
-                    name="showEmail" 
-                    checked={formData.showEmail} 
-                    onChange={handleChange} 
-                    className="w-4 h-4 accent-[#e85d4a] rounded" 
-                  />
-                  <span>Show email address in directory</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer text-xs text-slate-200">
-                  <input 
-                    type="checkbox" 
-                    name="showPhone" 
-                    checked={formData.showPhone} 
-                    onChange={handleChange} 
-                    className="w-4 h-4 accent-[#e85d4a] rounded" 
-                  />
-                  <span>Show mobile phone number in directory</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer text-xs text-slate-200">
-                  <input 
-                    type="checkbox" 
-                    name="showCompany" 
-                    checked={formData.showCompany} 
-                    onChange={handleChange} 
-                    className="w-4 h-4 accent-[#e85d4a] rounded" 
-                  />
-                  <span>Show company and designation details</span>
-                </label>
+                {privacyControls.map((control) => (
+                  <label key={control.name} className="flex items-center gap-3 cursor-pointer text-xs text-slate-200">
+                    <input
+                      type="checkbox"
+                      name={control.name}
+                      checked={formData[control.name]}
+                      onChange={handleChange}
+                      className="w-4 h-4 accent-[#e85d4a] rounded"
+                    />
+                    <span>{control.label}</span>
+                  </label>
+                ))}
               </div>
             </div>
 

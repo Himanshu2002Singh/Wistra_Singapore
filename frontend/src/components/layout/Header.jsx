@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { User, UserPlus, Menu, X, LogOut, LayoutDashboard, ArrowUpRight } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import TopBar from './TopBar'
 
 const navLinks = [
   { label: 'ABOUT', href: '/about' },
@@ -9,7 +10,6 @@ const navLinks = [
   { label: 'EVENTS', href: '/events' },
   { label: 'NEWS', href: '/news' },
   { label: 'COMMITTEES', href: '/committees' },
-  { label: 'NETWORK', href: '/network' },
   { label: 'CONTACT', href: '/contact' },
 ]
 
@@ -20,6 +20,7 @@ export default function Header({ cinematic = false, lightBg = false, whiteLogo =
   const navigate = useNavigate()
 
   const { isAuthenticated, user, logout } = useAuth()
+  const showTopBar = !location.pathname.startsWith('/admin')
 
   useEffect(() => {
     const handleScroll = () => {
@@ -51,8 +52,10 @@ export default function Header({ cinematic = false, lightBg = false, whiteLogo =
   const dashboardTarget = isAdmin ? '/admin/dashboard' : '/member/dashboard'
 
   return (
-    <header 
-      className={`floating-header relative ${cinematic ? 'cinematic-header' : ''} ${scrolled ? 'scrolled-header' : ''} ${lightBg && !scrolled ? 'light-header' : ''}`}
+    <>
+    {showTopBar && <TopBar />}
+    <header
+      className={`floating-header relative ${cinematic ? 'cinematic-header' : ''} ${!showTopBar ? 'without-topbar' : ''} ${scrolled ? 'scrolled-header' : ''} ${lightBg && !scrolled ? 'light-header' : ''}`}
     >
       {/* LEFT: OFFICIAL WISTA SINGAPORE LOGO */}
       <div className="header-left flex items-center">
@@ -171,5 +174,6 @@ export default function Header({ cinematic = false, lightBg = false, whiteLogo =
         </div>
       )}
     </header>
+    </>
   )
 }

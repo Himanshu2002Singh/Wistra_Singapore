@@ -11,6 +11,7 @@ const {
   suspendMembership,
   reactivateMembership,
   cancelMembership,
+  processMembershipExpiry,
 } = require('../controllers/adminMembershipController');
 
 router.get(
@@ -18,6 +19,13 @@ router.get(
   authenticateToken,
   requirePermission('membership.read', 'membership.manage', 'memberships.view'),
   getAdminMemberships
+);
+
+router.post(
+  '/process-expiry',
+  authenticateToken,
+  requirePermission('membership.manage'),
+  processMembershipExpiry
 );
 
 router.get(

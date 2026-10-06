@@ -12,23 +12,126 @@ const {
 } = require('../models');
 const { generateApplicationNumber } = require('../utils/applicationNumber');
 const { Op } = require('sequelize');
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const validateApplicationBody = (body) => {
+  const allowedFields = new Set([
+    'membership_type', 'company', 'designation', 'biography', 'linkedin_url', 'photo_url',
+    'nationality', 'date_of_birth', 'invoicing_address', 'phone', 'company_name',
+    'company_description', 'invoicing_contact_person', 'invoicing_email', 'contact_phone',
+    'main_contacts', 'additional_contacts', 'representatives',
+  ]);
+  const errors = {};
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return { errors: { body: 'Application details must be an object.' } };
+  }
+
+  for (const field of Object.keys(body)) {
+    if (!allowedFields.has(field)) errors[field] = 'This field is not supported.';
+  }
+  if (!['INDIVIDUAL', 'CORPORATE'].includes(body.membership_type)) {
+    errors.membership_type = 'Choose INDIVIDUAL or CORPORATE membership.';
+  }
+
+  const requiredByType = body.membership_type === 'INDIVIDUAL'
+    ? ['company', 'designation', 'biography', 'invoicing_address', 'phone']
+    : body.membership_type === 'CORPORATE'
+      ? ['company_name', 'company_description', 'invoicing_address', 'invoicing_contact_person', 'invoicing_email', 'main_contacts', 'additional_contacts']
+      : [];
+  for (const field of requiredByType) {
+    if (typeof body[field] !== 'string' || !body[field].trim()) errors[field] = 'This field is required.';
+  }
+
+  const maxLengths = {
+    company: 255, designation: 255, linkedin_url: 500, photo_url: 500, nationality: 100,
+    phone: 20, company_name: 255, invoicing_contact_person: 255, invoicing_email: 255,
+    contact_phone: 50,
+  };
+  for (const [field, max] of Object.entries(maxLengths)) {
+    if (body[field] !== undefined && body[field] !== null && body[field] !== '' &&
+        (typeof body[field] !== 'string' || body[field].trim().length > max)) {
+      errors[field] = `This field must be text of at most ${max} characters.`;
+    }
+  }
+  for (const field of ['biography', 'invoicing_address', 'company_description', 'main_contacts', 'additional_contacts']) {
+    if (body[field] !== undefined && body[field] !== null && body[field] !== '' &&
+        (typeof body[field] !== 'string' || body[field].length > 10000)) {
+      errors[field] = 'This field must be text of at most 10000 characters.';
+    }
+  }
+  if (body.invoicing_email !== undefined &&
+      (typeof body.invoicing_email !== 'string' || !EMAIL_REGEX.test(body.invoicing_email.trim()))) {
+    errors.invoicing_email = 'Enter a valid invoicing email address.';
+  }
+  if (body.date_of_birth !== undefined && body.date_of_birth !== null && body.date_of_birth !== '') {
+    const value = body.date_of_birth;
+    const date = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00.000Z`) : null;
+    if (!date || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+      errors.date_of_birth = 'Enter a valid date of birth.';
+    }
+  }
+  if (body.representatives !== undefined) {
+    if (body.membership_type !== 'CORPORATE' || !Array.isArray(body.representatives)) {
+      errors.representatives = 'Representatives must be a list for a corporate application.';
+    } else {
+      body.representatives.forEach((representative, index) => {
+        if (!representative || typeof representative !== 'object' || Array.isArray(representative) ||
+            typeof representative.name !== 'string' || !representative.name.trim() || representative.name.trim().length > 255) {
+          errors.representatives = `Representative ${index + 1} must have a name of at most 255 characters.`;
+        }
+        for (const field of ['email', 'phone', 'designation']) {
+          const max = field === 'email' || field === 'designation' ? 255 : 50;
+          if (representative?.[field] !== undefined && representative[field] !== null && representative[field] !== '' &&
+              (typeof representative[field] !== 'string' || representative[field].trim().length > max)) {
+            errors.representatives = `Representative ${index + 1} has an invalid ${field}.`;
+          }
+        }
+        if (typeof representative?.email === 'string' && representative.email && !EMAIL_REGEX.test(representative.email.trim())) {
+          errors.representatives = `Representative ${index + 1} has an invalid email.`;
+        }
+        if (representative?.is_primary !== undefined && typeof representative.is_primary !== 'boolean') {
+          errors.representatives = `Representative ${index + 1} has an invalid primary flag.`;
+        }
+      });
+    }
+  }
+
+  if (Object.keys(errors).length) return { errors };
+  const normalizedData = { ...body };
+  for (const [field, value] of Object.entries(normalizedData)) {
+    if (typeof value === 'string') normalizedData[field] = value.trim();
+  }
+  return { data: normalizedData };
+};
 
 /**
  * Allowed status transitions for Membership Applications.
  */
 const ALLOWED_TRANSITIONS = {
-  PENDING: ['UNDER_REVIEW', 'CLARIFICATION_REQUIRED', 'REJECTED', 'PAYMENT_PENDING'],
+  PENDING: ['UNDER_REVIEW'],
   UNDER_REVIEW: ['PAYMENT_PENDING', 'CLARIFICATION_REQUIRED', 'REJECTED'],
-  CLARIFICATION_REQUIRED: ['UNDER_REVIEW', 'PENDING', 'PAYMENT_PENDING', 'REJECTED'],
+  CLARIFICATION_REQUIRED: ['UNDER_REVIEW'],
   PAYMENT_PENDING: [], // Locked until payment processing in later step
   REJECTED: [], // Terminal state
   APPROVED: [], // Terminal / Locked
 };
 
 const isAllowedTransition = (currentStatus, targetStatus) => {
-  if (currentStatus === targetStatus) return true;
   const allowed = ALLOWED_TRANSITIONS[currentStatus];
   return Array.isArray(allowed) && allowed.includes(targetStatus);
+};
+
+const parseReviewRemarks = (body, required = false) => {
+  const value = body?.review_remarks;
+  if (value === undefined || value === null) {
+    return required ? { error: 'Review remarks are required.' } : { value: '' };
+  }
+  if (typeof value !== 'string' || value.trim().length > 4000) {
+    return { error: 'Review remarks must be text of at most 4000 characters.' };
+  }
+  const trimmed = value.trim();
+  if (required && !trimmed) return { error: 'Review remarks are required.' };
+  return { value: trimmed };
 };
 
 
@@ -36,8 +139,14 @@ const isAllowedTransition = (currentStatus, targetStatus) => {
  * Submit a new Individual or Corporate Membership Application.
  */
 const submitApplication = async (req, res, next) => {
-  const transaction = await sequelize.transaction();
+  let transaction;
   try {
+    const validation = validateApplicationBody(req.body);
+    if (validation.errors) {
+      return res.status(400).json({ success: false, message: 'Validation failed.', errors: validation.errors });
+    }
+    const applicationData = validation.data;
+    transaction = await sequelize.transaction();
     const userId = req.user.id;
     const {
       membership_type,
@@ -50,6 +159,7 @@ const submitApplication = async (req, res, next) => {
       nationality,
       date_of_birth,
       invoicing_address,
+      phone,
       // Corporate fields
       company_name,
       company_description,
@@ -59,14 +169,12 @@ const submitApplication = async (req, res, next) => {
       main_contacts,
       additional_contacts,
       representatives,
-    } = req.body;
+    } = applicationData;
 
-    if (!membership_type || !['INDIVIDUAL', 'CORPORATE'].includes(membership_type)) {
+    const applicant = await User.findByPk(userId, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!applicant) {
       await transaction.rollback();
-      return res.status(400).json({
-        success: false,
-        message: 'Valid membership_type (INDIVIDUAL or CORPORATE) is required.',
-      });
+      return res.status(404).json({ success: false, message: 'Applicant account was not found.' });
     }
 
     // Duplicate active application protection
@@ -116,6 +224,8 @@ const submitApplication = async (req, res, next) => {
 
     // Save type-specific profile data
     if (membership_type === 'INDIVIDUAL') {
+      applicant.phone = phone;
+      await applicant.save({ transaction });
       await IndividualProfile.upsert(
         {
           user_id: userId,
@@ -208,7 +318,7 @@ const submitApplication = async (req, res, next) => {
       },
     });
   } catch (error) {
-    await transaction.rollback();
+    if (transaction && !transaction.finished) await transaction.rollback();
     next(error);
   }
 };
@@ -416,8 +526,9 @@ const getAdminApplicationById = async (req, res, next) => {
  * Administrative: Move application to UNDER_REVIEW status.
  */
 const reviewApplication = async (req, res, next) => {
-  const transaction = await sequelize.transaction();
+  let transaction;
   try {
+    transaction = await sequelize.transaction();
     const { id } = req.params;
     const application = await MembershipApplication.findByPk(id, { transaction });
 
@@ -474,7 +585,7 @@ const reviewApplication = async (req, res, next) => {
       data: application,
     });
   } catch (error) {
-    await transaction.rollback();
+    if (transaction && !transaction.finished) await transaction.rollback();
     next(error);
   }
 };
@@ -484,10 +595,12 @@ const reviewApplication = async (req, res, next) => {
  * NOTE: APPROVAL != ACTIVATION. Payment and membership activation are separate future steps.
  */
 const approveApplication = async (req, res, next) => {
-  const transaction = await sequelize.transaction();
+  let transaction;
   try {
+    const remarks = parseReviewRemarks(req.body);
+    if (remarks.error) return res.status(400).json({ success: false, message: remarks.error });
+    transaction = await sequelize.transaction();
     const { id } = req.params;
-    const { review_remarks } = req.body;
 
     const application = await MembershipApplication.findByPk(id, { transaction });
     if (!application) {
@@ -508,7 +621,7 @@ const approveApplication = async (req, res, next) => {
     application.approved_at = new Date();
     application.reviewed_at = new Date();
     application.reviewed_by = req.user.id;
-    application.review_remarks = review_remarks || 'Application approved by EXCO. Payment requested.';
+    application.review_remarks = remarks.value || 'Application approved by EXCO. Payment requested.';
     await application.save({ transaction });
 
     await MembershipStatusHistory.create(
@@ -545,7 +658,7 @@ const approveApplication = async (req, res, next) => {
       data: application,
     });
   } catch (error) {
-    await transaction.rollback();
+    if (transaction && !transaction.finished) await transaction.rollback();
     next(error);
   }
 };
@@ -554,18 +667,12 @@ const approveApplication = async (req, res, next) => {
  * Administrative: Reject application.
  */
 const rejectApplication = async (req, res, next) => {
-  const transaction = await sequelize.transaction();
+  let transaction;
   try {
     const { id } = req.params;
-    const { review_remarks } = req.body;
-
-    if (!review_remarks || !review_remarks.trim()) {
-      await transaction.rollback();
-      return res.status(400).json({
-        success: false,
-        message: 'Rejection reason/remarks are required.',
-      });
-    }
+    const remarks = parseReviewRemarks(req.body, true);
+    if (remarks.error) return res.status(400).json({ success: false, message: remarks.error });
+    transaction = await sequelize.transaction();
 
     const application = await MembershipApplication.findByPk(id, { transaction });
     if (!application) {
@@ -586,7 +693,7 @@ const rejectApplication = async (req, res, next) => {
     application.rejected_at = new Date();
     application.reviewed_at = new Date();
     application.reviewed_by = req.user.id;
-    application.review_remarks = review_remarks.trim();
+    application.review_remarks = remarks.value;
     await application.save({ transaction });
 
     await MembershipStatusHistory.create(
@@ -623,7 +730,7 @@ const rejectApplication = async (req, res, next) => {
       data: application,
     });
   } catch (error) {
-    await transaction.rollback();
+    if (transaction && !transaction.finished) await transaction.rollback();
     next(error);
   }
 };
@@ -632,18 +739,12 @@ const rejectApplication = async (req, res, next) => {
  * Administrative: Request clarification from applicant.
  */
 const requestClarification = async (req, res, next) => {
-  const transaction = await sequelize.transaction();
+  let transaction;
   try {
     const { id } = req.params;
-    const { review_remarks } = req.body;
-
-    if (!review_remarks || !review_remarks.trim()) {
-      await transaction.rollback();
-      return res.status(400).json({
-        success: false,
-        message: 'Clarification notes/remarks are required.',
-      });
-    }
+    const remarks = parseReviewRemarks(req.body, true);
+    if (remarks.error) return res.status(400).json({ success: false, message: remarks.error });
+    transaction = await sequelize.transaction();
 
     const application = await MembershipApplication.findByPk(id, { transaction });
     if (!application) {
@@ -663,7 +764,7 @@ const requestClarification = async (req, res, next) => {
     application.status = 'CLARIFICATION_REQUIRED';
     application.reviewed_at = new Date();
     application.reviewed_by = req.user.id;
-    application.review_remarks = review_remarks.trim();
+    application.review_remarks = remarks.value;
     await application.save({ transaction });
 
     await MembershipStatusHistory.create(
@@ -700,7 +801,7 @@ const requestClarification = async (req, res, next) => {
       data: application,
     });
   } catch (error) {
-    await transaction.rollback();
+    if (transaction && !transaction.finished) await transaction.rollback();
     next(error);
   }
 };

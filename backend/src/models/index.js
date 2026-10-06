@@ -14,6 +14,8 @@ const DirectoryPrivacySettings = require('./DirectoryPrivacySettings');
 const AuditLog = require('./AuditLog');
 const Payment = require('./Payment');
 const Invoice = require('./Invoice');
+const Event = require('./Event');
+const NewsArticle = require('./NewsArticle');
 
 // Initialize all models
 User.init(sequelize);
@@ -29,6 +31,8 @@ DirectoryPrivacySettings.init(sequelize);
 AuditLog.init(sequelize);
 Payment.init(sequelize);
 Invoice.init(sequelize);
+Event.init(sequelize);
+NewsArticle.init(sequelize);
 
 // Store models in an object for association setup
 const models = {
@@ -45,6 +49,8 @@ const models = {
   AuditLog,
   Payment,
   Invoice,
+  Event,
+  NewsArticle,
 };
 
 // Setup associations

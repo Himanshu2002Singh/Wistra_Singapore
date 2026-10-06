@@ -11,7 +11,11 @@ const {
   MembershipStatusHistory,
   AuditLog,
 } = require('../models');
-const { activateMembership, getEffectiveMembershipStatus } = require('../services/membershipActivationService');
+const {
+  activateMembership,
+  getEffectiveMembershipStatus,
+  processExpiredMemberships,
+} = require('../services/membershipActivationService');
 const { Op } = require('sequelize');
 
 /**
@@ -25,18 +29,43 @@ const getAdminMemberships = async (req, res, next) => {
 
     const { status, membership_type, search } = req.query;
     const where = {};
+    const andConditions = [];
 
-    if (status && status !== 'All') where.status = status;
+    if (status && status !== 'All') {
+      if (status === 'EXPIRED') {
+        andConditions.push({
+          [Op.or]: [
+            { status: 'EXPIRED' },
+            { status: 'ACTIVE', end_date: { [Op.lt]: new Date().toISOString().split('T')[0] } },
+          ],
+        });
+      } else if (status === 'ACTIVE') {
+        where.status = 'ACTIVE';
+        andConditions.push({
+          [Op.or]: [
+            { end_date: null },
+            { end_date: { [Op.gte]: new Date().toISOString().split('T')[0] } },
+          ],
+        });
+      } else {
+        where.status = status;
+      }
+    }
     if (membership_type && membership_type !== 'All') where.membership_type = membership_type;
 
     if (search) {
-      where[Op.or] = [
+      andConditions.push({ [Op.or]: [
         { membership_number: { [Op.like]: `%${search}%` } },
         { '$user.email$': { [Op.like]: `%${search}%` } },
         { '$user.first_name$': { [Op.like]: `%${search}%` } },
         { '$user.last_name$': { [Op.like]: `%${search}%` } },
-      ];
+        { '$user.individualProfile.company$': { [Op.like]: `%${search}%` } },
+        { '$user.individualProfile.designation$': { [Op.like]: `%${search}%` } },
+        { '$user.corporateProfile.company_name$': { [Op.like]: `%${search}%` } },
+      ] });
     }
+
+    if (andConditions.length) where[Op.and] = andConditions;
 
     const { count, rows: memberships } = await Membership.findAndCountAll({
       where,
@@ -45,11 +74,25 @@ const getAdminMemberships = async (req, res, next) => {
           model: User,
           as: 'user',
           attributes: ['id', 'email', 'first_name', 'last_name', 'phone'],
+          include: [
+            {
+              model: IndividualProfile,
+              as: 'individualProfile',
+              attributes: ['company', 'designation'],
+              required: false,
+            },
+            {
+              model: CorporateProfile,
+              as: 'corporateProfile',
+              attributes: ['company_name'],
+              required: false,
+            },
+          ],
         },
         {
           model: MembershipApplication,
           as: 'application',
-          attributes: ['id', 'application_number', 'submitted_at'],
+          attributes: ['id', 'application_number', 'membership_type', 'status', 'submitted_at', 'approved_at'],
         },
       ],
       order: [['created_at', 'DESC']],
@@ -58,24 +101,17 @@ const getAdminMemberships = async (req, res, next) => {
       distinct: true,
     });
 
-    const formatted = await Promise.all(
-      memberships.map(async (m) => {
-        const plain = m.get({ plain: true });
-        plain.effective_status = getEffectiveMembershipStatus(m);
-
-        // Fetch company name
-        let company = 'N/A';
-        if (m.membership_type === 'INDIVIDUAL') {
-          const indProf = await IndividualProfile.findOne({ where: { user_id: m.user_id } });
-          company = indProf?.company || 'N/A';
-        } else if (m.membership_type === 'CORPORATE') {
-          const corpProf = await CorporateProfile.findOne({ where: { user_id: m.user_id } });
-          company = corpProf?.company_name || 'N/A';
-        }
-        plain.company = company;
-        return plain;
-      })
-    );
+    const formatted = memberships.map((m) => {
+      const plain = m.get({ plain: true });
+      plain.effective_status = getEffectiveMembershipStatus(m);
+      plain.company = plain.user?.individualProfile?.company || plain.user?.corporateProfile?.company_name || null;
+      plain.designation = plain.user?.individualProfile?.designation || null;
+      if (plain.user) {
+        delete plain.user.individualProfile;
+        delete plain.user.corporateProfile;
+      }
+      return plain;
+    });
 
     return res.json({
       success: true,
@@ -199,6 +235,15 @@ const suspendMembership = async (req, res, next) => {
       return res.status(409).json({
         success: false,
         message: `Only ACTIVE memberships can be suspended. Current status is '${membership.status}'.`,
+      });
+    }
+
+    const effectiveStatus = getEffectiveMembershipStatus(membership);
+    if (effectiveStatus === 'EXPIRED') {
+      await transaction.rollback();
+      return res.status(409).json({
+        success: false,
+        message: 'Cannot suspend an expired membership.',
       });
     }
 
@@ -354,6 +399,24 @@ const cancelMembership = async (req, res, next) => {
       });
     }
 
+    const effectiveStatus = getEffectiveMembershipStatus(membership);
+    if (effectiveStatus === 'EXPIRED' || membership.status === 'EXPIRED') {
+      await transaction.rollback();
+      return res.status(409).json({
+        success: false,
+        message: 'Cannot cancel an expired membership.',
+      });
+    }
+
+    const allowedCancelStatuses = ['ACTIVE', 'SUSPENDED', 'PENDING'];
+    if (!allowedCancelStatuses.includes(membership.status)) {
+      await transaction.rollback();
+      return res.status(409).json({
+        success: false,
+        message: `Cannot cancel membership with status '${membership.status}'.`,
+      });
+    }
+
     const oldStatus = membership.status;
     membership.status = 'CANCELLED';
     membership.cancelled_at = new Date();
@@ -400,6 +463,25 @@ const cancelMembership = async (req, res, next) => {
   }
 };
 
+/**
+ * Administrative: Process and transition all expired memberships from ACTIVE to EXPIRED.
+ */
+const processMembershipExpiry = async (req, res, next) => {
+  try {
+    const result = await processExpiredMemberships({
+      adminId: req.user.id,
+    });
+
+    return res.json({
+      success: true,
+      message: `Processed expired memberships. ${result.processedCount} membership(s) transitioned to EXPIRED.`,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAdminMemberships,
   getAdminMembershipById,
@@ -407,4 +489,6 @@ module.exports = {
   suspendMembership,
   reactivateMembership,
   cancelMembership,
+  processMembershipExpiry,
 };
+

@@ -14,6 +14,10 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 const adminPaymentRoutes = require('./routes/adminPaymentRoutes');
 const adminMembershipRoutes = require('./routes/adminMembershipRoutes');
+const adminReportRoutes = require('./routes/adminReportRoutes');
+const adminUserAccessRoutes = require('./routes/adminUserAccessRoutes');
+const adminAuditLogRoutes = require('./routes/adminAuditLogRoutes');
+const adminContentRoutes = require('./routes/adminContentRoutes');
 const rbacTestRoutes = require('./routes/rbacTestRoutes');
 const notFoundHandler = require('./middleware/notFoundHandler');
 const errorHandler = require('./middleware/errorHandler');
@@ -59,6 +63,10 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/admin/payments', adminPaymentRoutes);
 app.use('/api/admin/memberships', adminMembershipRoutes);
+app.use('/api/admin/reports', adminReportRoutes);
+app.use('/api/admin/users', adminUserAccessRoutes);
+app.use('/api/admin/audit-logs', adminAuditLogRoutes);
+app.use('/api/admin/content', adminContentRoutes);
 app.use('/api/rbac-test', rbacTestRoutes);
 
 // Error Handling Middlewares

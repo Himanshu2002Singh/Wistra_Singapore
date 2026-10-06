@@ -23,7 +23,7 @@ function AccessMessage({ title, children, action }) {
   )
 }
 
-export default function ProtectedRoute({ allowedRoles, requiredPermissions = [], allowSuperAdmin = true, children }) {
+export default function ProtectedRoute({ allowedRoles, requiredPermissions = [], allowSuperAdmin = true, unauthenticatedPath = '/login', children }) {
   const { user, isAuthenticated, isLoading, authError, checkAuth } = useAuth()
   const location = useLocation()
 
@@ -38,10 +38,10 @@ export default function ProtectedRoute({ allowedRoles, requiredPermissions = [],
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />
+    return <Navigate to={unauthenticatedPath} state={{ from: location }} replace />
   }
 
-  const roleName = user?.role?.name || user?.role || 'MEMBER'
+  const roleName = user?.role?.name || user?.role || null
   if (allowedRoles?.length && !(allowSuperAdmin && roleName === 'SUPER_ADMIN') && !allowedRoles.includes(roleName)) {
     return <AccessMessage title="You don’t have access to this area.">Your account is signed in, but it does not have a role that can open this page.</AccessMessage>
   }

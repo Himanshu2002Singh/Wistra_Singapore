@@ -23,34 +23,25 @@ export default function Login() {
     setLoading(true)
 
     try {
-      const authenticatedUser = await login(email, password)
+      await login(email, password)
       setLoading(false)
 
-      const roleName = authenticatedUser?.role?.name || authenticatedUser?.role || 'MEMBER'
       const requestedPath = location.state?.from?.pathname
       const redirectPath = requestedPath?.startsWith('/') && !requestedPath.startsWith('//')
         ? requestedPath
         : null
 
-      const adminRoles = [
-        'SUPER_ADMIN',
-        'MEMBERSHIP_ADMIN',
-        'FINANCE_ADMIN',
-        'EVENTS_ADMIN',
-        'COMMUNICATIONS_ADMIN',
-      ]
-
-      if (redirectPath?.startsWith('/admin') && adminRoles.includes(roleName)) {
-        navigate(redirectPath, { replace: true })
-      } else if (adminRoles.includes(roleName)) {
-        navigate('/admin/dashboard', { replace: true })
-      } else if (redirectPath && !redirectPath.startsWith('/admin')) {
+      if (redirectPath && !redirectPath.startsWith('/admin')) {
         navigate(redirectPath, { replace: true })
       } else {
         navigate('/member/dashboard', { replace: true })
       }
     } catch (err) {
       setLoading(false)
+      if (err.message === 'Administrator accounts must sign in through the admin access gateway.') {
+        navigate('/admin', { replace: true })
+        return
+      }
       setErrorMessage(err.message || 'Invalid email or password.')
     }
   }

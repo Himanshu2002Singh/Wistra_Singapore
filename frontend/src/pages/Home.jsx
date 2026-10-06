@@ -83,9 +83,6 @@ function HeroMotion() {
             <Link className="homepage-hero-cta" to="/membership">
               JOIN WISTA <ArrowRight size={17} aria-hidden="true" />
             </Link>
-            <Link className="homepage-hero-network-link" to="/network">
-              EXPLORE OUR NETWORK <ArrowRight size={15} aria-hidden="true" />
-            </Link>
           </div>
           <nav className="homepage-hero-memberships" aria-label="Membership applications">
             <Link to="/register/individual" className="homepage-membership-link">
@@ -166,7 +163,6 @@ export default function Home() {
               <strong>60<span>+</span></strong>
               <small>NATIONAL WISTA ASSOCIATIONS</small>
             </div>
-            <ArrowLink href="/network">Explore the network</ArrowLink>
           </div>
           <EditorialImage 
             src={homeNetwork1} 

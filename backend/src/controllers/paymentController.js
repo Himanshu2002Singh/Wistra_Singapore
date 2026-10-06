@@ -4,6 +4,7 @@ const {
   sequelize,
   Payment,
   Invoice,
+  Membership,
   MembershipApplication,
   User,
   AuditLog,
@@ -324,19 +325,36 @@ const getAdminPayments = async (req, res, next) => {
       where[Op.or] = [
         { payment_reference: { [Op.like]: `%${search}%` } },
         { transaction_reference: { [Op.like]: `%${search}%` } },
+        { '$invoice.invoice_number$': { [Op.like]: `%${search}%` } },
+        { '$application.application_number$': { [Op.like]: `%${search}%` } },
+        { '$membership.membership_number$': { [Op.like]: `%${search}%` } },
         { '$user.email$': { [Op.like]: `%${search}%` } },
         { '$user.first_name$': { [Op.like]: `%${search}%` } },
         { '$user.last_name$': { [Op.like]: `%${search}%` } },
       ];
     }
 
+    const safePaymentAttributes = [
+      'id', 'payment_reference', 'application_id', 'user_id', 'membership_id', 'amount', 'currency',
+      'payment_method', 'payment_status', 'transaction_reference', 'paid_at', 'verified_at',
+      'failure_reason', 'notes', 'createdAt', 'updatedAt',
+    ];
+    const invoiceAttributes = [
+      'id', 'invoice_number', 'payment_id', 'application_id', 'membership_type', 'subtotal',
+      'discount', 'total', 'currency', 'status', 'issued_at', 'due_at', 'paid_at',
+    ];
+    const applicationAttributes = ['id', 'application_number', 'membership_type', 'status', 'submitted_at', 'approved_at'];
+    const membershipAttributes = ['id', 'membership_number', 'membership_type', 'status', 'start_date', 'end_date'];
+
     const { count, rows: payments } = await Payment.findAndCountAll({
+      attributes: safePaymentAttributes,
       where,
       include: [
         { model: User, as: 'user', attributes: ['id', 'email', 'first_name', 'last_name', 'phone'] },
         { model: User, as: 'verifier', attributes: ['id', 'email', 'first_name', 'last_name'] },
-        { model: Invoice, as: 'invoice' },
-        { model: MembershipApplication, as: 'application' },
+        { model: Invoice, as: 'invoice', attributes: invoiceAttributes },
+        { model: MembershipApplication, as: 'application', attributes: applicationAttributes },
+        { model: Membership, as: 'membership', attributes: membershipAttributes },
       ],
       order: [['created_at', 'DESC']],
       limit,
@@ -365,11 +383,17 @@ const getAdminPaymentById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const payment = await Payment.findByPk(id, {
+      attributes: [
+        'id', 'payment_reference', 'application_id', 'user_id', 'membership_id', 'amount', 'currency',
+        'payment_method', 'payment_status', 'transaction_reference', 'paid_at', 'verified_at',
+        'failure_reason', 'notes', 'createdAt', 'updatedAt',
+      ],
       include: [
         { model: User, as: 'user', attributes: ['id', 'email', 'first_name', 'last_name', 'phone'] },
         { model: User, as: 'verifier', attributes: ['id', 'email', 'first_name', 'last_name'] },
-        { model: Invoice, as: 'invoice' },
-        { model: MembershipApplication, as: 'application' },
+        { model: Invoice, as: 'invoice', attributes: ['id', 'invoice_number', 'payment_id', 'application_id', 'membership_type', 'subtotal', 'discount', 'total', 'currency', 'status', 'issued_at', 'due_at', 'paid_at'] },
+        { model: MembershipApplication, as: 'application', attributes: ['id', 'application_number', 'membership_type', 'status', 'submitted_at', 'approved_at'] },
+        { model: Membership, as: 'membership', attributes: ['id', 'membership_number', 'membership_type', 'status', 'start_date', 'end_date'] },
       ],
     });
 
