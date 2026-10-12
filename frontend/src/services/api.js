@@ -1,6 +1,9 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, '')
+const API_BASE_URL = configuredApiUrl
+  ? (configuredApiUrl.endsWith('/api') ? configuredApiUrl : `${configuredApiUrl}/api`)
+  : (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api')
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -31,7 +34,8 @@ api.interceptors.response.use(
       // Clear invalid token if request failed with 401 (except for login route itself)
       const requestUrl = error.config?.url || ''
       const isPublicAuthRequest = /\/auth\/(login|register)(?:\?|$)/.test(requestUrl)
-      if (!isPublicAuthRequest) {
+      const isAdminDemoSession = localStorage.getItem('wista_admin_demo') === 'true'
+      if (!isPublicAuthRequest && !isAdminDemoSession) {
         localStorage.removeItem('wista_token')
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('wista:auth-invalid', {

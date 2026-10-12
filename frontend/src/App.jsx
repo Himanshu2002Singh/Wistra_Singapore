@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import CustomCursor from '@/components/ui/CustomCursor'
 import BackToTop from '@/components/ui/BackToTop'
@@ -13,7 +13,7 @@ const Membership = lazy(() => import('@/pages/Membership'))
 const Events = lazy(() => import('@/pages/Events'))
 const News = lazy(() => import('@/pages/News'))
 const Committees = lazy(() => import('@/pages/Committees'))
-const Gallery = lazy(() => import('@/pages/Gallery'))
+const OurPresidents = lazy(() => import('@/pages/OurPresidents'))
 const Network = lazy(() => import('@/pages/Network'))
 const Contact = lazy(() => import('@/pages/Contact'))
 
@@ -23,6 +23,7 @@ const AdminGateway = lazy(() => import('@/pages/AdminGateway'))
 const Register = lazy(() => import('@/pages/Register'))
 const RegisterIndividual = lazy(() => import('@/pages/RegisterIndividual'))
 const RegisterCorporate = lazy(() => import('@/pages/RegisterCorporate'))
+const RegisterStudent = lazy(() => import('@/pages/RegisterStudent'))
 
 // Member portal
 const MemberDashboard = lazy(() => import('@/pages/member/Dashboard'))
@@ -76,7 +77,8 @@ export default function App() {
           <Route path="/events" element={<Events />} />
           <Route path="/news" element={<News />} />
           <Route path="/committees" element={<Committees />} />
-          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/our-presidents" element={<OurPresidents />} />
+          <Route path="/gallery" element={<Navigate to="/" replace />} />
           <Route path="/network" element={<Network />} />
           <Route path="/contact" element={<Contact />} />
 
@@ -85,6 +87,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/register/individual" element={<RegisterIndividual />} />
           <Route path="/register/corporate" element={<RegisterCorporate />} />
+          <Route path="/register/student" element={<RegisterStudent />} />
 
           <Route element={<ProtectedRoute allowedRoles={['MEMBER']} allowSuperAdmin={false} />}>
             <Route path="/member" element={<MemberDashboard />} />

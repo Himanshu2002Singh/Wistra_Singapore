@@ -26,7 +26,7 @@ export default function AdminLayout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [notificationOpen, setNotificationOpen] = useState(false)
-  const { user, logout } = useAuth()
+  const { user, logout, isDemo } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const displayName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email : 'Administrator'
@@ -70,7 +70,10 @@ export default function AdminLayout({ children }) {
           </div>
         </aside>
         {mobileMenuOpen && <button className="admin-nav-scrim" aria-label="Close admin navigation" onClick={closeMobileMenu} />}
-        <main className="admin-main-content">{children || <Outlet />}</main>
+        <main className="admin-main-content">
+          {isDemo && <div className="border-b border-amber-300 bg-amber-50 px-5 py-3 text-sm text-amber-950" role="status"><strong>Frontend demo session.</strong> Live records and admin actions require the backend; backend RBAC has not authenticated this session.</div>}
+          {children || <Outlet />}
+        </main>
       </div>
     </div>
   )

@@ -11,6 +11,18 @@ const {
 const { generateMembershipNumber } = require('../utils/membershipNumber');
 const { Op } = require('sequelize');
 
+const getSingaporeDateParts = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date);
+  return Object.fromEntries(parts.filter(({ type }) => type !== 'literal').map(({ type, value }) => [type, value]));
+};
+
+const getSingaporeDate = (date = new Date()) => {
+  const { year, month, day } = getSingaporeDateParts(date);
+  return `${year}-${month}-${day}`;
+};
+
 /**
  * Calculate WISTA Singapore membership validity period.
  * WISTA Membership Year: 1 June to 31 May.
@@ -19,9 +31,9 @@ const { Op } = require('sequelize');
  * @returns {{ start_date: string, end_date: string }}
  */
 const calculateMembershipPeriod = (refDate = new Date()) => {
-  const date = new Date(refDate);
-  const year = date.getFullYear();
-  const month = date.getMonth(); // 0-indexed (5 = June)
+  const { year: yearString, month: monthString } = getSingaporeDateParts(new Date(refDate));
+  const year = Number(yearString);
+  const month = Number(monthString) - 1; // 0-indexed (5 = June), Singapore calendar date
 
   let startYear, endYear;
   if (month >= 5) {
@@ -49,7 +61,7 @@ const calculateMembershipPeriod = (refDate = new Date()) => {
 const getEffectiveMembershipStatus = (membership) => {
   if (!membership) return 'INACTIVE';
   if (membership.status === 'ACTIVE' && membership.end_date) {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getSingaporeDate();
     if (todayStr > membership.end_date) {
       return 'EXPIRED';
     }
@@ -199,7 +211,7 @@ const processExpiredMemberships = async ({ adminId = null, transaction: external
   const isSelfManagedTx = !externalTx;
 
   try {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getSingaporeDate();
     const expiredCandidates = await Membership.findAll({
       where: {
         status: 'ACTIVE',
@@ -267,5 +279,5 @@ module.exports = {
   getEffectiveMembershipStatus,
   activateMembership,
   processExpiredMemberships,
+  getSingaporeDate,
 };
-

@@ -78,7 +78,7 @@ export default function Committees() {
         bgPosition="center 30%"
         variant="curve-right"
       />
-      <section className="exco-leadership-section">
+      <section className="exco-leadership-section" id="executive-committee">
         <ScrollReveal>
           <div className="exco-section-inner">
             <header className="exco-section-heading">
@@ -97,13 +97,8 @@ export default function Committees() {
 
       <section className="route-section content-white committee-working-groups">
         <ScrollReveal>
-          <h2>Sub-committees &amp; Working <em>Groups.</em></h2>
-          <DetailLinks base="/committees" items={[
-            'Executive Committee & Officers',
-            'Events & Networking Committee',
-            'Membership & Community Committee',
-            'Communications & Media Committee'
-          ]} />
+          <h2>Our <em>Community.</em></h2>
+          <DetailLinks items={[{ label: 'Executive Committee & Officers', to: '/committees#executive-committee' }]} />
         </ScrollReveal>
       </section>
     </PageShell>

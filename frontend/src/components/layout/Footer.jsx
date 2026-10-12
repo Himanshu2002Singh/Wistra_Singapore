@@ -8,12 +8,14 @@ const navItems = [
   { label: 'EVENTS', href: '/events' },
   { label: 'NEWS', href: '/news' },
   { label: 'COMMITTEES', href: '/committees' },
+  { label: 'OUR PRESIDENTS', href: '/our-presidents' },
   { label: 'CONTACT', href: '/contact' },
 ]
 
 const membershipItems = [
   { label: 'INDIVIDUAL MEMBERSHIP', href: '/register/individual' },
   { label: 'CORPORATE MEMBERSHIP', href: '/register/corporate' },
+  { label: 'STUDENT MEMBERSHIP', href: '/register/student' },
 ]
 
 function FooterSocialIcon({ platform }) {

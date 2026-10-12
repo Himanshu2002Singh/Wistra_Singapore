@@ -13,6 +13,7 @@ import membershipCommunity from '../assets/images/wista/client-provided/wista-me
 import membershipCorporate from '../assets/images/wista/client-provided/wista-corporate-membership.jpeg'
 import membershipMentoring from '../assets/images/wista/membership/membership-mentoring.jpg'
 import membershipReception from '../assets/images/wista/membership/membership-reception.jpg'
+import membershipStudentCommunity from '../assets/images/wista/home/home-community.jpg'
 
 export default function Membership() {
   const [activeLightbox, setActiveLightbox] = useState(null)
@@ -91,15 +92,28 @@ export default function Membership() {
             </article>
             <article className="membership-path membership-path--reverse">
               <EditorialImage
-                src={membershipCorporate}
-                alt="WISTA Singapore member welcoming visitors at a corporate event"
-                onClick={() => setActiveLightbox({ src: membershipCorporate, alt: 'WISTA Singapore member welcoming visitors at a corporate event', caption: 'Corporate Membership & Industry Connections' })}
+                src={membershipStudentCommunity}
+                alt="WISTA Singapore members at a chapter gathering"
+                onClick={() => setActiveLightbox({ src: membershipStudentCommunity, alt: 'WISTA Singapore members at a chapter gathering', caption: 'WISTA Singapore Member Community' })}
               />
               <div className="membership-path-copy">
                 <p className="eyebrow">CORPORATE MEMBERSHIP</p>
                 <h3>For organizations</h3>
                 <p>For companies in Singapore supporting gender diversity and empowering female leadership.</p>
                 <Link className="editorial-link" to="/register/corporate">Explore corporate membership <span aria-hidden="true">↗</span></Link>
+              </div>
+            </article>
+            <article className="membership-path">
+              <EditorialImage
+                src={membershipCorporate}
+                alt="WISTA Singapore member welcoming visitors at a corporate event"
+                onClick={() => setActiveLightbox({ src: membershipCorporate, alt: 'WISTA Singapore member welcoming visitors at a corporate event', caption: 'Corporate Membership & Industry Connections' })}
+              />
+              <div className="membership-path-copy">
+                <p className="eyebrow">STUDENT MEMBERSHIP</p>
+                <h3>For students</h3>
+                <p>Student membership application details are being confirmed with WISTA Singapore.</p>
+                <Link className="editorial-link" to="/register/student">Student application details <span aria-hidden="true">↗</span></Link>
               </div>
             </article>
           </div>

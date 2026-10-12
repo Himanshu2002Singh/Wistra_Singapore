@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
-import { ArrowUpRight, User, Building, ChevronDown } from 'lucide-react'
+import { ArrowUpRight, User, Building, GraduationCap, ChevronDown } from 'lucide-react'
 import registerHeroBg from '../assets/images/wista/membership/membership-reception.jpg'
 
 export default function Register() {
@@ -14,11 +14,13 @@ export default function Register() {
     setSelectedType(val)
     if (val === 'individual') navigate('/register/individual')
     if (val === 'corporate') navigate('/register/corporate')
+    if (val === 'student') navigate('/register/student')
   }
 
   const handleContinue = () => {
     if (selectedType === 'individual') navigate('/register/individual')
     else if (selectedType === 'corporate') navigate('/register/corporate')
+    else if (selectedType === 'student') navigate('/register/student')
   }
 
   return (
@@ -49,6 +51,7 @@ export default function Register() {
               <option value="" disabled className="bg-[var(--ink)] text-gray-300">-- Select Membership Type --</option>
               <option value="individual" className="bg-[var(--ink)] text-white">Individual Membership (SGD 150/yr)</option>
               <option value="corporate" className="bg-[var(--ink)] text-white">Corporate Membership (SGD 500/yr)</option>
+              <option value="student" className="bg-[var(--ink)] text-white">Student Membership</option>
             </select>
             <ChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" />
           </div>
@@ -63,7 +66,7 @@ export default function Register() {
         </div>
 
         {/* EDITORIAL SELECTION CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {/* INDIVIDUAL CARD */}
           <div className="registration-choice bg-white/5 border border-white/10 p-8 md:p-10 rounded-lg flex flex-col justify-between hover:border-[var(--coral)] transition group">
             <div>
@@ -107,6 +110,29 @@ export default function Register() {
               className="w-full py-4 border border-white group-hover:bg-white group-hover:text-[var(--ink)] text-white font-bold tracking-widest uppercase text-xs transition flex items-center justify-center gap-2"
             >
               Apply as Corporate <ArrowUpRight size={16} />
+            </Link>
+          </div>
+
+          {/* STUDENT CARD — application details await client confirmation */}
+          <div className="registration-choice bg-white/5 border border-white/10 p-8 md:p-10 rounded-lg flex flex-col justify-between hover:border-[var(--teal)] transition group">
+            <div>
+              <div className="w-12 h-12 rounded-full bg-[var(--teal)]/20 text-[var(--teal)] flex items-center justify-center mb-6">
+                <GraduationCap size={24} />
+              </div>
+              <p className="text-xs font-bold tracking-widest uppercase text-[var(--teal)] mb-2">STUDENT MEMBERSHIP</p>
+              <h3 className="font-[var(--serif)] text-3xl text-white mb-4">Student</h3>
+              <p className="text-sm text-gray-300 mb-6 leading-relaxed">
+                Student membership application details are being confirmed with WISTA Singapore.
+              </p>
+              <div className="text-sm font-semibold text-[var(--teal)] mb-8">
+                Application details to be provided
+              </div>
+            </div>
+            <Link
+              to="/register/student"
+              className="w-full py-4 border border-white group-hover:bg-white group-hover:text-[var(--ink)] text-white font-bold tracking-widest uppercase text-xs transition flex items-center justify-center gap-2"
+            >
+              Student application details <ArrowUpRight size={16} />
             </Link>
           </div>
         </div>

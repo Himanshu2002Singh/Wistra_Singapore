@@ -79,6 +79,20 @@ const createUserWithRole = async (email, roleName) => {
   return { user, role, token };
 };
 
+const registerMember = async (email, first_name, last_name) => {
+  const response = await request('/api/auth/register', 'POST', {
+    email,
+    password: 'Password123!',
+    first_name,
+    last_name,
+    phone: '+65 91234567',
+  });
+  if (response.status !== 201 || !response.body.data?.token || response.body.data.user?.role?.name !== 'MEMBER') {
+    throw new Error('Member registration did not create a member account and session.');
+  }
+  return { user: response.body.data.user, token: response.body.data.token };
+};
+
 const runTests = async () => {
   console.log('=== STARTING MEMBERSHIP APPLICATION SUITE VERIFICATION ===');
   await sequelize.authenticate();
@@ -86,8 +100,8 @@ const runTests = async () => {
   server = app.listen(PORT);
 
   try {
-    const applicantUser1 = await createUserWithRole(`applicant1.${Date.now()}@example.com`, 'MEMBER');
-    const applicantUser2 = await createUserWithRole(`applicant2.${Date.now()}@example.com`, 'MEMBER');
+    const applicantUser1 = await registerMember(`applicant1.${Date.now()}@example.com`, 'Individual', 'AppTest');
+    const applicantUser2 = await registerMember(`applicant2.${Date.now()}@example.com`, 'Corporate', 'AppTest');
     const membershipAdmin = await createUserWithRole(`admin.mem.${Date.now()}@example.com`, 'MEMBERSHIP_ADMIN');
 
     // 1. Submit Individual Application
@@ -98,6 +112,7 @@ const runTests = async () => {
       designation: 'Senior Director',
       biography: 'Over 15 years in port logistics.',
       nationality: 'Singaporean',
+      phone: '+65 91234567',
       invoicing_address: '1 Harbourfront Place, Singapore',
     }, applicantUser1.token);
 
@@ -124,6 +139,10 @@ const runTests = async () => {
     const dupRes = await request('/api/membership/applications', 'POST', {
       membership_type: 'INDIVIDUAL',
       company: 'PSA International',
+      designation: 'Senior Director',
+      biography: 'Over 15 years in port logistics.',
+      phone: '+65 91234567',
+      invoicing_address: '1 Harbourfront Place, Singapore',
     }, applicantUser1.token);
 
     console.log('Duplicate Submission Response (409):', dupRes.status, dupRes.body.message);
@@ -137,8 +156,11 @@ const runTests = async () => {
       membership_type: 'CORPORATE',
       company_name: 'Pacific International Lines (PIL)',
       company_description: 'Global container shipping line.',
+      invoicing_address: '1 HarbourFront Place, Singapore',
       invoicing_contact_person: 'Finance Manager',
       invoicing_email: 'finance@pil.com.sg',
+      main_contacts: 'Test primary corporate contact',
+      additional_contacts: 'Test additional corporate contact',
       representatives: [
         { name: 'Rep 1', email: 'rep1@pil.com.sg', designation: 'VP Shipping', is_primary: true },
         { name: 'Rep 2', email: 'rep2@pil.com.sg', designation: 'Fleet Manager', is_primary: false },
@@ -186,6 +208,11 @@ const runTests = async () => {
       throw new Error('Clarification request failed');
     }
 
+    const resumedReview = await request(`/api/admin/applications/${indAppId}/review`, 'PATCH', null, membershipAdmin.token);
+    if (resumedReview.status !== 200 || resumedReview.body.data.status !== 'UNDER_REVIEW') {
+      throw new Error('Application could not return to review after clarification.');
+    }
+
     // 9. Admin Approve Application -> PAYMENT_PENDING
     console.log('\n[9] Testing Admin Approve Application (APPROVAL != ACTIVATION)...');
     const appRes = await request(`/api/admin/applications/${indAppId}/approve`, 'PATCH', {
@@ -199,6 +226,10 @@ const runTests = async () => {
 
     // 10. Admin Reject Application
     console.log('\n[10] Testing Admin Reject Corporate Application...');
+    const corpReview = await request(`/api/admin/applications/${corpAppId}/review`, 'PATCH', null, membershipAdmin.token);
+    if (corpReview.status !== 200 || corpReview.body.data.status !== 'UNDER_REVIEW') {
+      throw new Error('Corporate application could not be placed under review before rejection.');
+    }
     const rejRes = await request(`/api/admin/applications/${corpAppId}/reject`, 'PATCH', {
       review_remarks: 'Organization does not meet maritime industry criteria.',
     }, membershipAdmin.token);

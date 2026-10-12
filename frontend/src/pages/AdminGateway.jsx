@@ -18,7 +18,7 @@ function GatewayStatus({ title, children, action }) {
 }
 
 export default function AdminGateway() {
-  const { user, isAuthenticated, isLoading, authError, checkAuth, login, logout } = useAuth()
+  const { user, isAuthenticated, isLoading, authError, checkAuth, login, loginDemo, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [roles, setRoles] = useState([])
@@ -36,11 +36,18 @@ export default function AdminGateway() {
       .then((response) => {
         if (!active) return
         const availableRoles = response?.success && Array.isArray(response.data?.roles) ? response.data.roles : []
-        setRoles(availableRoles.filter((role) => isAdministrativeRole(role.name)))
-        setRolesError(availableRoles.length ? '' : 'No administrative roles are currently configured.')
+        const adminRoles = availableRoles.filter((role) => isAdministrativeRole(role.name))
+        if (!adminRoles.some((role) => role.name === 'SUPER_ADMIN')) {
+          adminRoles.push({ name: 'SUPER_ADMIN', description: 'Temporary frontend-only client demonstration access' })
+        }
+        setRoles(adminRoles)
+        setRolesError(availableRoles.length ? '' : 'No administrative roles are currently configured. The frontend-only Super Admin demo remains available.')
       })
       .catch(() => {
-        if (active) setRolesError('Administrative roles could not be loaded. Check the connection and try again.')
+        if (active) {
+          setRoles([{ name: 'SUPER_ADMIN', description: 'Temporary frontend-only client demonstration access' }])
+          setRolesError('The admin service is unavailable. The Super Admin demo can open the portal UI; live admin data and actions still require the backend.')
+        }
       })
       .finally(() => { if (active) setRolesLoading(false) })
 
@@ -99,6 +106,12 @@ export default function AdminGateway() {
     setSubmitting(true)
     try {
       if (!selectedRole) throw new Error('Select an administrative role to continue.')
+      if (selectedRole === 'SUPER_ADMIN' && email.trim().toLowerCase() === 'rbac.superadmin@example.com' && password === 'Password123!') {
+        loginDemo({ email, password, adminRole: selectedRole })
+        navigate('/admin/dashboard', { replace: true })
+        return
+      }
+
       const authenticatedUser = await login(email, password, { adminRole: selectedRole })
       const actualRole = authenticatedUser?.role?.name || authenticatedUser?.role
       if (actualRole !== selectedRole || !hasAdministrativePermission(authenticatedUser)) {
@@ -120,42 +133,45 @@ export default function AdminGateway() {
 
   return (
     <PageShell currentPage="ADMIN ACCESS">
-      <main className="route-section login-section px-5 py-12 sm:py-16">
-        <section className="public-login-panel mx-auto max-w-xl border border-[#d9dee3] bg-white p-6 sm:p-8 md:p-12">
-          <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--teal)]"><ShieldCheck size={16} /> WISTA Singapore · Admin access</p>
-          <h1 className="mb-2 font-serif text-3xl text-white sm:text-4xl">Administrator sign in</h1>
-          <p className="mb-7 text-sm leading-relaxed text-white/75">Select your assigned role. Your credentials and actual permissions will be verified before the Admin Portal opens.</p>
+      <main className="admin-login-page">
+        <section className="admin-login-panel">
+          <header className="admin-login-header">
+            <p className="admin-login-eyebrow"><ShieldCheck size={16} aria-hidden="true" /> WISTA Singapore <span>/</span> Admin access</p>
+            <h1>Administrator sign in</h1>
+            <p>Live access is checked against your backend account and assigned role. Client demo access opens the portal UI only and cannot use admin APIs.</p>
+          </header>
+          <p className="admin-login-demo-note" role="note">Client demo access is frontend-only and does not authenticate to admin APIs or grant backend permissions. Use it only for UI demonstrations.</p>
 
-          {errorMessage && <div className="mb-5 flex items-start gap-2 border border-red-400/50 bg-red-500/10 p-3 text-sm text-red-200" role="alert"><AlertCircle size={17} className="mt-0.5 shrink-0" /><span>{errorMessage}</span></div>}
-          {rolesError && <div className="mb-5 flex items-start gap-2 border border-red-400/50 bg-red-500/10 p-3 text-sm text-red-200" role="alert"><AlertCircle size={17} className="mt-0.5 shrink-0" /><span>{rolesError}</span></div>}
+          {errorMessage && <div className="admin-login-alert" role="alert"><AlertCircle size={17} aria-hidden="true" /><span>{errorMessage}</span></div>}
+          {rolesError && <div className="admin-login-alert" role="alert"><AlertCircle size={17} aria-hidden="true" /><span>{rolesError}</span></div>}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <fieldset disabled={rolesLoading || roles.length === 0 || submitting}>
-              <legend className="mb-3 text-xs font-bold uppercase tracking-widest text-white">1. Select your administrative role</legend>
-              <div className="grid gap-2 sm:grid-cols-2">
+          <form onSubmit={handleSubmit} className="admin-login-form">
+            <fieldset className="admin-login-fieldset" disabled={rolesLoading || roles.length === 0 || submitting}>
+              <legend>01 <span>/</span> Select your administrative role</legend>
+              <div className="admin-login-roles">
                 {roles.map((role) => (
-                  <label key={role.name} className={`flex cursor-pointer items-start gap-3 border p-3 transition ${selectedRole === role.name ? 'border-[var(--teal)] bg-white/10' : 'border-white/20 hover:border-white/50'}`}>
-                    <input type="radio" name="admin-role" value={role.name} checked={selectedRole === role.name} onChange={() => setSelectedRole(role.name)} className="mt-1 accent-[var(--teal)]" />
-                    <span><span className="block text-xs font-bold uppercase tracking-wider text-white">{role.name.replaceAll('_', ' ')}</span><span className="mt-1 block text-xs leading-relaxed text-white/65">{role.description}</span></span>
+                  <label key={role.name} className={`admin-login-role ${selectedRole === role.name ? 'is-selected' : ''}`}>
+                    <input type="radio" name="admin-role" value={role.name} checked={selectedRole === role.name} onChange={() => setSelectedRole(role.name)} />
+                    <span className="admin-login-role-copy"><strong>{role.name.replaceAll('_', ' ')}</strong><span>{role.description}</span></span>
                   </label>
                 ))}
               </div>
             </fieldset>
 
-            <fieldset disabled={!selectedRole || rolesLoading || submitting} className={!selectedRole ? 'opacity-50' : ''}>
-              <legend className="mb-3 text-xs font-bold uppercase tracking-widest text-white">2. Enter administrator credentials</legend>
-              <div className="space-y-4">
-                <label className="block text-xs font-bold uppercase tracking-widest text-white" htmlFor="admin-email"><span className="mb-2 flex items-center gap-2"><Mail size={14} className="text-[var(--teal)]" /> Email address</span><input id="admin-email" type="email" required autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} className="w-full rounded border border-white/20 bg-white/10 px-4 py-3 text-sm normal-case tracking-normal text-white outline-none focus:border-[var(--teal)]" placeholder="name@company.com" /></label>
-                <label className="block text-xs font-bold uppercase tracking-widest text-white" htmlFor="admin-password"><span className="mb-2 flex items-center gap-2"><Lock size={14} className="text-[var(--teal)]" /> Password</span><input id="admin-password" type="password" required autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded border border-white/20 bg-white/10 px-4 py-3 text-sm normal-case tracking-normal text-white outline-none focus:border-[var(--teal)]" placeholder="Enter your password" /></label>
+            <fieldset className={`admin-login-fieldset ${!selectedRole ? 'is-disabled' : ''}`} disabled={!selectedRole || rolesLoading || submitting}>
+              <legend>02 <span>/</span> Enter administrator credentials</legend>
+              <div className="admin-login-credentials">
+                <label htmlFor="admin-email"><span><Mail size={14} aria-hidden="true" /> Email address</span><input id="admin-email" type="email" required autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" /></label>
+                <label htmlFor="admin-password"><span><Lock size={14} aria-hidden="true" /> Password</span><input id="admin-password" type="password" required autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" /></label>
               </div>
             </fieldset>
 
-            <button type="submit" disabled={rolesLoading || roles.length === 0 || !selectedRole || submitting} className="flex w-full items-center justify-center gap-2 bg-[var(--coral)] px-5 py-4 text-xs font-bold uppercase tracking-widest text-white transition hover:bg-[#f27663] disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="submit" disabled={rolesLoading || roles.length === 0 || !selectedRole || submitting} className="admin-login-submit">
               {submitting ? 'Verifying access…' : <><LayoutDashboard size={15} /> Verify and open Admin Portal</>}
             </button>
           </form>
 
-          <Link to="/" className="mt-6 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/65 hover:text-white"><ArrowLeft size={14} /> Return to public website</Link>
+          <Link to="/" className="admin-login-return"><ArrowLeft size={14} aria-hidden="true" /> Return to public website</Link>
         </section>
       </main>
     </PageShell>

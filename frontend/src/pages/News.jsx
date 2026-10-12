@@ -1,15 +1,48 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
 import Lightbox from '@/components/ui/Lightbox'
 import ScrollReveal from '@/components/ui/ScrollReveal'
-import { news } from '@/data/news'
+import { getPublishedNewsApi } from '@/services/publicContentService'
 
 // Exclusive Curated Hero Background Image for News
 import newsHeroBg from '../assets/images/wista/client-provided/wista-news-hero-community.jpg'
+import newsCard1 from '../assets/images/wista/news/news-card-1.jpg'
+import newsCard2 from '../assets/images/wista/news/news-card-2.jpg'
+import newsCard3 from '../assets/images/wista/news/news-card-3.jpg'
+import newsCard4 from '../assets/images/wista/news/news-card-4.jpg'
+import newsCard5 from '../assets/images/wista/news/news-card-5.jpg'
+import newsCard6 from '../assets/images/wista/news/news-card-6.jpg'
+
+const newsImages = [newsCard1, newsCard2, newsCard3, newsCard4, newsCard5, newsCard6]
 
 export default function News() {
   const [activeLightbox, setActiveLightbox] = useState(null)
+  const [newsState, setNewsState] = useState({ articles: [], loading: true, error: false })
+
+  useEffect(() => {
+    let active = true
+    getPublishedNewsApi()
+      .then((response) => {
+        if (!active) return
+        const rows = Array.isArray(response?.data?.articles) ? response.data.articles : []
+        const articles = rows.map((article, index) => ({
+          id: article.id,
+          title: article.title,
+          excerpt: article.excerpt,
+          date: article.published_at ? new Intl.DateTimeFormat('en-SG', { dateStyle: 'medium', timeZone: 'Asia/Singapore' }).format(new Date(article.published_at)) : '—',
+          category: article.category,
+          image: article.image_url || newsImages[index % newsImages.length],
+          author: article.author,
+        }))
+        setNewsState({ articles, loading: false, error: false })
+      })
+      .catch(() => { if (active) setNewsState({ articles: [], loading: false, error: true }) })
+
+    return () => { active = false }
+  }, [])
+
+  const news = newsState.articles
 
   return (
     <PageShell currentPage="NEWS & STORIES">
@@ -81,6 +114,9 @@ export default function News() {
           </section>
         </ScrollReveal>
       )}
+      {newsState.loading && <p className="section-pad text-sm text-slate-600" role="status">Loading published news…</p>}
+      {newsState.error && <p className="section-pad text-sm text-slate-600" role="status">Published news is temporarily unavailable. Please try again later.</p>}
+      {!newsState.loading && !newsState.error && !news.length && <p className="section-pad text-sm text-slate-600">There are no published stories yet.</p>}
     </PageShell>
   )
 }

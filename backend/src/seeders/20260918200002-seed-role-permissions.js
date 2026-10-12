@@ -106,61 +106,37 @@ const ROLE_PERMISSION_MAP = {
   ],
 };
 
+const getSeededMappings = async (queryInterface, Sequelize) => {
+  const roles = await queryInterface.sequelize.query(
+    'SELECT id, name FROM roles WHERE name IN (:names)',
+    { replacements: { names: Object.keys(ROLE_PERMISSION_MAP) }, type: Sequelize.QueryTypes.SELECT }
+  );
+  const permissions = await queryInterface.sequelize.query(
+    'SELECT id, name FROM permissions',
+    { type: Sequelize.QueryTypes.SELECT }
+  );
+  const roleMap = Object.fromEntries(roles.map(({ id, name }) => [name, id]));
+  const permissionMap = Object.fromEntries(permissions.map(({ id, name }) => [name, id]));
+  const now = new Date();
+  const records = [];
+
+  for (const [roleName, rolePermissions] of Object.entries(ROLE_PERMISSION_MAP)) {
+    const roleId = roleMap[roleName];
+    if (!roleId) continue;
+    const permissionIds = rolePermissions === '*'
+      ? permissions.map(({ id }) => id)
+      : rolePermissions.map((permissionName) => permissionMap[permissionName]).filter(Boolean);
+    for (const permissionId of permissionIds) {
+      records.push({ role_id: roleId, permission_id: permissionId, created_at: now, updated_at: now });
+    }
+  }
+  return records;
+};
+
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    // Clear existing mappings first for a clean seed
-    await queryInterface.bulkDelete('role_permissions', null, {});
-
-    const roles = await queryInterface.sequelize.query(
-      'SELECT id, name FROM roles',
-      { type: Sequelize.QueryTypes.SELECT }
-    );
-
-    const permissions = await queryInterface.sequelize.query(
-      'SELECT id, name FROM permissions',
-      { type: Sequelize.QueryTypes.SELECT }
-    );
-
-    const roleMap = {};
-    roles.forEach((r) => {
-      roleMap[r.name] = r.id;
-    });
-
-    const permMap = {};
-    permissions.forEach((p) => {
-      permMap[p.name] = p.id;
-    });
-
-    const now = new Date();
-    const records = [];
-
-    for (const [roleName, perms] of Object.entries(ROLE_PERMISSION_MAP)) {
-      const roleId = roleMap[roleName];
-      if (!roleId) continue;
-
-      if (perms === '*') {
-        for (const perm of permissions) {
-          records.push({
-            role_id: roleId,
-            permission_id: perm.id,
-            created_at: now,
-            updated_at: now,
-          });
-        }
-      } else {
-        for (const permName of perms) {
-          const permId = permMap[permName];
-          if (!permId) continue;
-          records.push({
-            role_id: roleId,
-            permission_id: permId,
-            created_at: now,
-            updated_at: now,
-          });
-        }
-      }
-    }
+    const records = await getSeededMappings(queryInterface, Sequelize);
 
     if (records.length > 0) {
       await queryInterface.bulkInsert('role_permissions', records, { ignoreDuplicates: true });
@@ -168,6 +144,11 @@ module.exports = {
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.bulkDelete('role_permissions', null, {});
+    const records = await getSeededMappings(queryInterface, Sequelize);
+    if (records.length) {
+      await queryInterface.bulkDelete('role_permissions', {
+        [Sequelize.Op.or]: records.map(({ role_id, permission_id }) => ({ role_id, permission_id })),
+      });
+    }
   },
 };

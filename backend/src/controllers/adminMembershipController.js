@@ -15,6 +15,7 @@ const {
   activateMembership,
   getEffectiveMembershipStatus,
   processExpiredMemberships,
+  getSingaporeDate,
 } = require('../services/membershipActivationService');
 const { Op } = require('sequelize');
 
@@ -36,7 +37,7 @@ const getAdminMemberships = async (req, res, next) => {
         andConditions.push({
           [Op.or]: [
             { status: 'EXPIRED' },
-            { status: 'ACTIVE', end_date: { [Op.lt]: new Date().toISOString().split('T')[0] } },
+            { status: 'ACTIVE', end_date: { [Op.lt]: getSingaporeDate() } },
           ],
         });
       } else if (status === 'ACTIVE') {
@@ -44,7 +45,7 @@ const getAdminMemberships = async (req, res, next) => {
         andConditions.push({
           [Op.or]: [
             { end_date: null },
-            { end_date: { [Op.gte]: new Date().toISOString().split('T')[0] } },
+            { end_date: { [Op.gte]: getSingaporeDate() } },
           ],
         });
       } else {
@@ -491,4 +492,3 @@ module.exports = {
   cancelMembership,
   processMembershipExpiry,
 };
-

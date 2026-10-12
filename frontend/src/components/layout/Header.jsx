@@ -10,6 +10,7 @@ const navLinks = [
   { label: 'EVENTS', href: '/events' },
   { label: 'NEWS', href: '/news' },
   { label: 'COMMITTEES', href: '/committees' },
+  { label: 'OUR PRESIDENTS', href: '/our-presidents' },
   { label: 'CONTACT', href: '/contact' },
 ]
 

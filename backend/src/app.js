@@ -18,6 +18,7 @@ const adminReportRoutes = require('./routes/adminReportRoutes');
 const adminUserAccessRoutes = require('./routes/adminUserAccessRoutes');
 const adminAuditLogRoutes = require('./routes/adminAuditLogRoutes');
 const adminContentRoutes = require('./routes/adminContentRoutes');
+const publicContentRoutes = require('./routes/publicContentRoutes');
 const rbacTestRoutes = require('./routes/rbacTestRoutes');
 const notFoundHandler = require('./middleware/notFoundHandler');
 const errorHandler = require('./middleware/errorHandler');
@@ -26,12 +27,19 @@ const app = express();
 
 app.use(helmet());
 
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
-    credentials: true,
-  })
-);
+const configuredClientOrigins = (process.env.CLIENT_URL || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowedClientOrigins = configuredClientOrigins.length
+  ? configuredClientOrigins
+  : process.env.NODE_ENV === 'production' ? [] : ['http://localhost:5173'];
+
+app.use(cors({
+  origin: (origin, callback) => callback(null, !origin || allowedClientOrigins.includes(origin)),
+  // The client authenticates with Bearer tokens; it does not use cross-site cookies.
+  credentials: false,
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -67,6 +75,7 @@ app.use('/api/admin/reports', adminReportRoutes);
 app.use('/api/admin/users', adminUserAccessRoutes);
 app.use('/api/admin/audit-logs', adminAuditLogRoutes);
 app.use('/api/admin/content', adminContentRoutes);
+app.use('/api/content', publicContentRoutes);
 app.use('/api/rbac-test', rbacTestRoutes);
 
 // Error Handling Middlewares

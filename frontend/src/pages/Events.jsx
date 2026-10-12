@@ -1,29 +1,29 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
-import DetailLinks from '@/components/editorial/DetailLinks'
 import Eyebrow from '@/components/editorial/Eyebrow'
 import ArrowLink from '@/components/editorial/ArrowLink'
 import EditorialImage from '@/components/editorial/EditorialImage'
 import Lightbox from '@/components/ui/Lightbox'
 import ScrollReveal from '@/components/ui/ScrollReveal'
-import { upcomingEvents, pastEvents } from '@/data/events'
+import { getPublishedEventsApi } from '@/services/publicContentService'
 
 // Exclusive Curated Hero Background Image for Events
 import eventsHeroBg from '../assets/images/wista/client-provided/wista-pink-ribbon-walk.jpg'
 import eventsIntroImage from '../assets/images/wista/client-provided/wista-community-gathering.jpg'
 import eventsCommunityImage from '../assets/images/wista/client-provided/wista-member-gala-dinner.jpg'
 import eventsFeaturedImage from '../assets/images/wista/client-provided/wista-team-committee.jpg'
+import eventCard1 from '../assets/images/wista/events/event-card-1.jpg'
+import eventCard2 from '../assets/images/wista/events/event-card-2.jpg'
+import eventCard3 from '../assets/images/wista/events/event-card-3.jpg'
+import eventCard4 from '../assets/images/wista/events/event-card-4.jpg'
+import eventCard5 from '../assets/images/wista/events/event-card-5.jpg'
+import eventCard6 from '../assets/images/wista/events/event-card-6.jpg'
 
-const moreEventLinks = [
-  'WISTA Singapore AGM 2026 — Singapore Cricket Club',
-  'WISTA Singapore Annual Gala Dinner — Marina Bay Sands',
-  'Asia Pacific Maritime 2026 Forum — Sands Expo',
-  'WISTA x Royal Navy Maritime Exchange — Port Facilities'
-]
+const eventImages = [eventCard1, eventCard2, eventCard3, eventCard4, eventCard5, eventCard6]
 
 function eventDate(date, options) {
-  return new Date(`${date}T00:00:00`).toLocaleDateString('en-SG', options)
+  return new Intl.DateTimeFormat('en-SG', { ...options, timeZone: 'Asia/Singapore' }).format(new Date(date))
 }
 
 function EventImageButton({ event, imageSrc = event.image, className = '', onOpen }) {
@@ -42,6 +42,33 @@ function EventImageButton({ event, imageSrc = event.image, className = '', onOpe
 
 export default function Events() {
   const [activeLightbox, setActiveLightbox] = useState(null)
+  const [eventState, setEventState] = useState({ events: [], loading: true, error: false })
+
+  useEffect(() => {
+    let active = true
+    getPublishedEventsApi()
+      .then((response) => {
+        if (!active) return
+        const rows = Array.isArray(response?.data?.events) ? response.data.events : []
+        const events = rows.map((event, index) => ({
+          id: event.id,
+          title: event.title,
+          date: event.starts_at,
+          location: event.location,
+          type: event.event_type,
+          description: event.description,
+          image: eventImages[index % eventImages.length],
+        }))
+        setEventState({ events, loading: false, error: false })
+      })
+      .catch(() => { if (active) setEventState({ events: [], loading: false, error: true }) })
+
+    return () => { active = false }
+  }, [])
+
+  const today = Date.now()
+  const upcomingEvents = eventState.events.filter((event) => new Date(event.date).getTime() >= today).sort((a, b) => new Date(a.date) - new Date(b.date))
+  const pastEvents = eventState.events.filter((event) => new Date(event.date).getTime() < today).sort((a, b) => new Date(b.date) - new Date(a.date))
   const openEventImage = (event, imageSrc = event.image) => setActiveLightbox({ src: imageSrc, title: event.title, caption: `${event.type} — ${event.location}` })
 
   return (
@@ -69,7 +96,6 @@ export default function Events() {
             <Eyebrow>03 — THE EVENT JOURNAL</Eyebrow>
             <h2>Events that connect the <em>maritime community.</em></h2>
             <p>From local networking evenings to industry panel discussions and international naval exchanges, WISTA Singapore events turn conversations into momentum.</p>
-            <ArrowLink href="#upcoming-events">Explore upcoming events</ArrowLink>
           </div>
           <EditorialImage
             src={eventsIntroImage}
@@ -134,11 +160,10 @@ export default function Events() {
                 </button>
               </li>
             ))}
+            {!eventState.loading && !eventState.error && !upcomingEvents.length && <li className="events-upcoming-row">There are no published upcoming events.</li>}
           </ol>
-          <div id="upcoming-programme" className="events-programme-links">
-            <Eyebrow>MORE FROM THE PROGRAMME</Eyebrow>
-            <DetailLinks base="/events" items={moreEventLinks} className="events-detail-links" />
-          </div>
+          {eventState.loading && <p className="mt-5 text-sm text-slate-600" role="status">Loading published events…</p>}
+          {eventState.error && <p className="mt-5 text-sm text-slate-600" role="status">Published events are temporarily unavailable. Please try again later.</p>}
         </section>
       </ScrollReveal>
 
@@ -147,7 +172,6 @@ export default function Events() {
           <div className="events-community-copy">
             <Eyebrow>03 — TOGETHER, IN PERSON</Eyebrow>
             <h2>Connect.<br /><em>Learn.</em><br />Lead.</h2>
-            <ArrowLink href="#upcoming-events">Find your next event</ArrowLink>
           </div>
           <EditorialImage
             src={eventsCommunityImage}
@@ -178,7 +202,10 @@ export default function Events() {
                 </div>
               </article>
             ))}
+            {!eventState.loading && !eventState.error && !pastEvents.length && <p className="text-sm text-slate-600">There are no past published events.</p>}
           </div>
+          {eventState.loading && <p className="mt-5 text-sm text-slate-600" role="status">Loading event archive…</p>}
+          {eventState.error && <p className="mt-5 text-sm text-slate-600" role="status">The event archive is temporarily unavailable.</p>}
         </section>
       </ScrollReveal>
 
@@ -186,7 +213,6 @@ export default function Events() {
         <section className="events-closing-section section-pad">
           <Eyebrow>WISTA SINGAPORE</Eyebrow>
           <h2>Make room for the <em>next conversation.</em></h2>
-          <ArrowLink href="#upcoming-events">Explore upcoming events</ArrowLink>
         </section>
       </ScrollReveal>
     </PageShell>

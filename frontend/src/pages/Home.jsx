@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowUpRight, ArrowRight, UserRound, Building2 } from 'lucide-react'
+import { ArrowRight, UserRound, Building2, GraduationCap } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import Eyebrow from '@/components/editorial/Eyebrow'
@@ -15,7 +15,6 @@ import homeHeroBg from '../assets/images/wista/hero/wista-ssa-41st-anniversary-g
 import homeWelcome from '../assets/images/wista/home/home-welcome.jpg'
 import homeNetwork1 from '../assets/images/wista/home/home-network-1.jpg'
 import homeNetwork2 from '../assets/images/wista/home/home-network-2.jpg'
-import homeCommunity from '../assets/images/wista/home/home-community.jpg'
 import homePrinciples from '../assets/images/wista/home/home-principles.jpg'
 import homeBreak from '../assets/images/wista/home/home-break.jpg'
 import homeEventMain from '../assets/images/wista/home/home-event-main.jpg'
@@ -93,6 +92,10 @@ function HeroMotion() {
               <Building2 size={19} strokeWidth={1.5} aria-hidden="true" />
               <span><strong>CORPORATE</strong><span>MEMBERSHIP</span></span>
             </Link>
+            <Link to="/register/student" className="homepage-membership-link">
+              <GraduationCap size={19} strokeWidth={1.5} aria-hidden="true" />
+              <span><strong>STUDENT</strong><span>MEMBERSHIP</span></span>
+            </Link>
           </nav>
         </div>
       </div>
@@ -143,10 +146,9 @@ export default function Home() {
           />
           <div className="statement-big">
             Singapore&apos;s network connecting <em>women</em> across maritime and trade.
-            <small>WISTA SINGAPORE<br />Led by President Yukie Teo &amp; Executive Committee.</small>
           </div>
           <div className="statement-side">
-            <Eyebrow>PRESIDENT'S WELCOME</Eyebrow>
+            <Eyebrow>01 — PRESIDENT&apos;S WELCOME</Eyebrow>
             <p>Welcome to WISTA Singapore. We are a premier professional network bringing together executive women across shipping, trading, and port logistics in Singapore.</p>
             <ArrowLink href="/about">Discover WISTA</ArrowLink>
           </div>
@@ -160,8 +162,9 @@ export default function Home() {
             <h2>Connected<br /><em>by the sea.</em></h2>
             <p>Local roots. International direction. WISTA brings women together across Singapore and the world’s maritime community.</p>
             <div className="network-stat">
-              <strong>60<span>+</span></strong>
-              <small>NATIONAL WISTA ASSOCIATIONS</small>
+              <div><strong>1998</strong><small>ESTABLISHED</small></div>
+              <div><strong>160<span>+</span></strong><small>SINGAPORE MEMBERS</small></div>
+              <div><strong>60<span>+</span></strong><small>NATIONAL ASSOCIATIONS</small></div>
             </div>
           </div>
           <EditorialImage 
@@ -180,32 +183,18 @@ export default function Home() {
       </ScrollReveal>
 
       <ScrollReveal>
-        <section className="numbers-section section-pad">
-          <div className="section-intro">
-            <Eyebrow>THE COMMUNITY</Eyebrow>
-            <p>One network, thousands of people moving maritime forward.</p>
-          </div>
-          <div className="community-feature">
-            <EditorialImage 
-              src={homeCommunity} 
-              alt="WISTA Singapore members community gathering" 
-              className="community-photo"
-              onClick={() => setActiveLightbox({ src: homeCommunity, alt: 'WISTA Community', caption: 'WISTA Singapore Annual Forum Delegation' })}
-            />
-            <div className="number-row">
-              <div><strong>200<span>+</span></strong><small>SINGAPORE MEMBERS</small></div>
-              <div><strong>60<span>+</span></strong><small>ASSOCIATIONS</small></div>
-              <div><strong>2006</strong><small>ESTABLISHED</small></div>
-            </div>
-          </div>
-        </section>
-      </ScrollReveal>
-
-      <ScrollReveal>
         <section className="principles-section section-pad">
-          <div className="principles-heading">
-            <Eyebrow>WHAT WE DO</Eyebrow>
-            <h2>Move the<br /><em>industry</em><br />forward.</h2>
+          <div className="principles-intro">
+            <div className="principles-heading">
+              <Eyebrow>03 — WHAT WE DO</Eyebrow>
+              <h2>Move the<br /><em>industry</em><br />forward.</h2>
+            </div>
+            <EditorialImage 
+              src={homePrinciples}
+              alt="WISTA Singapore Year-End Gala executive reception"
+              className="principle-image"
+              onClick={() => setActiveLightbox({ src: homePrinciples, alt: 'Executive Reception', caption: 'Professional Development & Executive Leadership' })}
+            />
           </div>
           <div className="principles-list">
             {principles.map(([number, title, desc], index) => (
@@ -219,16 +208,9 @@ export default function Home() {
                   <h3>{title}</h3>
                   <p>{desc}</p>
                 </div>
-                <ArrowUpRight size={21} />
               </div>
             ))}
           </div>
-          <EditorialImage 
-            src={homePrinciples} 
-            alt="WISTA Singapore Year-End Gala executive reception" 
-            className="principle-image"
-            onClick={() => setActiveLightbox({ src: homePrinciples, alt: 'Executive Reception', caption: 'Professional Development & Executive Leadership' })}
-          />
         </section>
       </ScrollReveal>
 
@@ -242,20 +224,19 @@ export default function Home() {
       <ScrollReveal>
         <section className="events-editorial section-pad">
           <div className="events-top">
-            <div>
-              <Eyebrow>03 — EVENTS</Eyebrow>
-              <h2>Where<br /><em>people</em><br />meet.</h2>
-            </div>
-            <ArrowLink href="/events">View all events</ArrowLink>
-          </div>
-          <div className="event-feature">
             <EditorialImage 
               src={homeEventMain} 
               alt="WISTA Singapore Annual Gala" 
               className="event-main-photo"
               onClick={() => setActiveLightbox({ src: homeEventMain, alt: 'WISTA Annual Gala', caption: 'WISTA Singapore Annual Gala — Marina Bay Sands' })}
             />
-            <div>
+            <div className="events-heading">
+              <Eyebrow>04 — EVENTS</Eyebrow>
+              <h2>Where<br /><em>people</em><br />meet.</h2>
+            </div>
+          </div>
+          <div className="event-feature">
+            <div className="event-copy">
               <p className="event-date">SINGAPORE MARITIME COMMUNITY</p>
               <h3>Ideas move<br />when people meet.</h3>
               <p className="event-place">A shared room, a wider horizon, and the conversations that carry forward.</p>
@@ -294,7 +275,6 @@ export default function Home() {
             <Eyebrow>06 — COMMUNITY</Eyebrow>
             <h2>Across every<br /><em>horizon.</em></h2>
             <p>From formal gatherings to naval deck exchanges, this is a network built on human connection.</p>
-            <ArrowLink href="/gallery">Visit the gallery</ArrowLink>
           </div>
           <div className="gallery-images">
             <EditorialImage 

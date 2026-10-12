@@ -2,6 +2,10 @@
 **/node_modules/
 **/dist/
 **/dist-ssr/
+*.db
+*.sqlite
+*.sqlite3
+__design-reference/
 
 # Local environment files; keep example templates
 **/.env

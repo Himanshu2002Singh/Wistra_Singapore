@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
 import EditorialImage from '@/components/editorial/EditorialImage'
-import ArrowLink from '@/components/editorial/ArrowLink'
 import Lightbox from '@/components/ui/Lightbox'
 import ScrollReveal from '@/components/ui/ScrollReveal'
 
@@ -81,7 +80,6 @@ export default function About() {
                 <div className="about-principle-copy">
                   <h3>{title}</h3>
                   <p>{text}</p>
-                  <ArrowLink href="#">Explore story</ArrowLink>
                 </div>
               </article>
             ))}

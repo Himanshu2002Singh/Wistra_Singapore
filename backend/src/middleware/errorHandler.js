@@ -4,7 +4,12 @@
  * Centralized Express Error Handling Middleware
  */
 const errorHandler = (err, req, res, next) => {
-  console.error('Unhandled error:', err);
+  // Do not dump Sequelize error objects: they may contain SQL parameters or user data.
+  console.error('Unhandled request error.', {
+    name: err.name,
+    code: err.original?.code || err.code,
+    statusCode: err.statusCode || err.status || 500,
+  });
 
   // Sequelize Unique Constraint Error
   if (err.name === 'SequelizeUniqueConstraintError') {

@@ -163,7 +163,7 @@ export default function RegisterIndividual() {
                 <Link to="/" className="px-6 py-3 bg-[var(--coral)] hover:bg-[#f27663] text-white font-bold tracking-widest uppercase text-xs rounded transition">
                   Return to Home
                 </Link>
-                <Link to="/login" className="px-6 py-3 border border-white hover:bg-white hover:text-black text-white font-bold tracking-widest uppercase text-xs rounded transition">
+                <Link to="/login" className="application-login-link px-6 py-3 border border-white font-bold tracking-widest uppercase text-xs rounded transition">
                   Proceed to Login
                 </Link>
               </div>

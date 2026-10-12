@@ -15,7 +15,7 @@ export const membershipInfo = {
     { question: 'How do I apply for WISTA Singapore membership?', answer: 'You can apply online through our membership portal. Your application will be reviewed by the committee.' },
     { question: 'What is the membership fee?', answer: 'Individual membership is SGD 150/year and Corporate membership is SGD 500/year.' },
     { question: 'How long does the application process take?', answer: 'Typically 1-2 weeks for the committee to review and approve.' },
-    { question: 'Can students join WISTA Singapore?', answer: 'We currently focus on working professionals, but keep an eye out for our upcoming student initiatives.' },
+    { question: 'How can students apply for WISTA Singapore membership?', answer: 'Student membership is listed on the registration page. Application requirements and fees will be shared once confirmed by WISTA Singapore.' },
     { question: 'Do I have to be a Singapore citizen?', answer: 'No, but you should be working in the maritime industry in Singapore.' },
     { question: 'What payment methods are accepted?', answer: 'We accept bank transfer and major credit cards.' }
   ],

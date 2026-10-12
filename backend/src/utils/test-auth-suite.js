@@ -2,6 +2,7 @@
 
 require('dotenv').config();
 const http = require('http');
+const crypto = require('crypto');
 const app = require('../app');
 const sequelize = require('../config/database');
 const { User, Role, Membership } = require('../models');
@@ -64,14 +65,14 @@ const runTests = async () => {
   const testEmail = `test.user.${Date.now()}@example.com`;
   const escalateEmail = `admin.hack.${Date.now()}@example.com`;
   const otherEmail = `other.member.${Date.now()}@example.com`;
-  const testPassword = 'Password123!';
+  const testPassword = `${crypto.randomBytes(24).toString('base64url')}!`;
   let jwtToken = '';
 
   try {
     // 1. GET /api/health
     console.log('\n[1] Testing Health Check...');
     const health = await request('/api/health');
-    console.log('Health Response:', health.status, health.body);
+    console.log('Health Response status:', health.status);
     if (health.status !== 200 || health.body.database !== 'connected') {
       throw new Error('Health check failed');
     }
@@ -85,7 +86,7 @@ const runTests = async () => {
       last_name: 'Member',
       phone: '+65 91234567',
     });
-    console.log('Register Response:', regRes.status, regRes.body);
+    console.log('Register Response status:', regRes.status);
     if (regRes.status !== 201 || !regRes.body.success) {
       throw new Error('Registration failed');
     }
@@ -104,7 +105,7 @@ const runTests = async () => {
     if (!isBcryptHash) {
       throw new Error('Password is not hashed with bcrypt!');
     }
-    console.log('DB Password Hash verified (bcrypt):', dbUser.password_hash.substring(0, 15) + '...');
+    console.log('DB Password Hash verified (bcrypt): yes');
 
     // 5. Attempt duplicate registration
     console.log('\n[3] Testing Duplicate Registration...');
@@ -114,7 +115,7 @@ const runTests = async () => {
       first_name: 'Test',
       last_name: 'Member',
     });
-    console.log('Duplicate Register Response:', dupRes.status, dupRes.body);
+    console.log('Duplicate Register Response status:', dupRes.status);
     if (dupRes.status !== 409) {
       throw new Error('Duplicate registration should return 409 Conflict');
     }
@@ -142,7 +143,7 @@ const runTests = async () => {
       first_name: 'Invalid',
       last_name: 'Email',
     });
-    console.log('Invalid Email Response:', invEmailRes.status, invEmailRes.body);
+    console.log('Invalid Email Response status:', invEmailRes.status);
     if (invEmailRes.status !== 400) {
       throw new Error('Invalid email should return 400');
     }
@@ -171,7 +172,7 @@ const runTests = async () => {
       email: testEmail,
       password: 'WrongPassword123!',
     });
-    console.log('Wrong Password Response:', wrongPassRes.status, wrongPassRes.body);
+    console.log('Wrong Password Response status:', wrongPassRes.status);
     if (wrongPassRes.status !== 401 || wrongPassRes.body.message !== 'Invalid email or password.') {
       throw new Error('Invalid login response must return generic error message');
     }
@@ -290,7 +291,7 @@ const runTests = async () => {
     // 11. GET /api/auth/me without token
     console.log('\n[9] Testing /api/auth/me without Token...');
     const noTokenRes = await request('/api/auth/me', 'GET');
-    console.log('No Token Response:', noTokenRes.status, noTokenRes.body);
+    console.log('No Token Response status:', noTokenRes.status);
     if (noTokenRes.status !== 401) {
       throw new Error('GET /api/auth/me without token should return 401');
     }
@@ -298,7 +299,7 @@ const runTests = async () => {
     // 12. GET /api/auth/me with invalid token
     console.log('\n[10] Testing /api/auth/me with Invalid Token...');
     const badTokenRes = await request('/api/auth/me', 'GET', null, 'invalid.jwt.token');
-    console.log('Bad Token Response:', badTokenRes.status, badTokenRes.body);
+    console.log('Bad Token Response status:', badTokenRes.status);
     if (badTokenRes.status !== 401) {
       throw new Error('GET /api/auth/me with bad token should return 401');
     }
@@ -316,7 +317,7 @@ const runTests = async () => {
       email: testEmail,
       password: testPassword,
     });
-    console.log('Suspended Login Response:', suspendedLoginRes.status, suspendedLoginRes.body);
+    console.log('Suspended Login Response status:', suspendedLoginRes.status);
     if (suspendedLoginRes.status !== 403) {
       throw new Error('Suspended user login should return 403 Forbidden');
     }
@@ -332,7 +333,7 @@ const runTests = async () => {
     // 15. Test authenticated Logout
     console.log('\n[12] Testing Logout Endpoint...');
     const logoutRes = await request('/api/auth/logout', 'POST', null, jwtToken);
-    console.log('Logout Response:', logoutRes.status, logoutRes.body);
+    console.log('Logout Response status:', logoutRes.status);
     if (logoutRes.status !== 200) {
       throw new Error('Logout endpoint failed');
     }

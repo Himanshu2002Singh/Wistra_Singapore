@@ -168,6 +168,6 @@ export default function Reports() {
       </tbody></table></div>
       <div className="admin-sample-pagination"><span>{report ? `${filteredRows.length} of ${rows.length} report metrics` : 'No report loaded'}</span><button type="button" className="admin-sample-button" onClick={handleExport} disabled={!report || loading || exporting || !canExport}><Download size={14} />{exporting ? 'Exporting…' : 'Export CSV'}</button></div>
     </> : <section className="admin-sample-table-wrap"><div className="admin-sample-empty" role="status">No report types are available to this role. Membership, application, and financial reports require their corresponding domain permissions. Event report data is not available in this backend.</div></section>}
-    <p className="admin-report-unavailable-note">Event reports are unavailable because this backend has no event or registration data models.</p>
+    <p className="admin-report-unavailable-note">Event reports are unavailable because event registration and attendance data are not implemented.</p>
   </div></AdminLayout>
 }

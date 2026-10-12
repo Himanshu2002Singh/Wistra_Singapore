@@ -5,6 +5,6 @@ export const navItems = [
   { number: '04', label: 'NEWS', detail: 'Stories & updates', href: '/news' },
   { number: '05', label: 'MEMBERSHIP', detail: 'Join our chapter', href: '/membership' },
   { number: '06', label: 'COMMITTEES', detail: 'Leadership team', href: '/committees' },
-  { number: '07', label: 'GALLERY', detail: 'A visual archive', href: '/gallery' },
+  { number: '07', label: 'OUR PRESIDENTS', detail: 'Leadership archive', href: '/our-presidents' },
   { number: '08', label: 'CONTACT', detail: "Let's connect", href: '/contact' },
 ]
