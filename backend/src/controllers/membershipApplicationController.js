@@ -9,6 +9,7 @@ const {
   User,
   MembershipStatusHistory,
   AuditLog,
+  StudentProfile,
 } = require('../models');
 const { generateApplicationNumber } = require('../utils/applicationNumber');
 const { Op } = require('sequelize');
@@ -428,6 +429,9 @@ const getAdminApplications = async (req, res, next) => {
         { '$applicant.email$': { [Op.like]: `%${search}%` } },
         { '$applicant.first_name$': { [Op.like]: `%${search}%` } },
         { '$applicant.last_name$': { [Op.like]: `%${search}%` } },
+        { '$studentProfile.email$': { [Op.like]: `%${search}%` } },
+        { '$studentProfile.first_name$': { [Op.like]: `%${search}%` } },
+        { '$studentProfile.last_name$': { [Op.like]: `%${search}%` } },
       ];
     }
 
@@ -439,6 +443,7 @@ const getAdminApplications = async (req, res, next) => {
           as: 'applicant',
           attributes: ['id', 'email', 'first_name', 'last_name', 'phone'],
         },
+        { model: StudentProfile, as: 'studentProfile', attributes: ['first_name', 'last_name', 'email'] },
         {
           model: User,
           as: 'reviewer',
@@ -479,6 +484,7 @@ const getAdminApplicationById = async (req, res, next) => {
           as: 'applicant',
           attributes: ['id', 'email', 'first_name', 'last_name', 'phone', 'status'],
         },
+        { model: StudentProfile, as: 'studentProfile', attributes: { exclude: ['document_storage_key'] } },
         {
           model: User,
           as: 'reviewer',
@@ -494,11 +500,11 @@ const getAdminApplicationById = async (req, res, next) => {
       });
     }
 
-    const individualProfile = await IndividualProfile.findOne({ where: { user_id: application.user_id } });
-    const corporateProfile = await CorporateProfile.findOne({
+    const individualProfile = application.user_id ? await IndividualProfile.findOne({ where: { user_id: application.user_id } }) : null;
+    const corporateProfile = application.user_id ? await CorporateProfile.findOne({
       where: { user_id: application.user_id },
       include: [{ model: CorporateRepresentative, as: 'representatives' }],
-    });
+    }) : null;
 
     const statusHistory = await MembershipStatusHistory.findAll({
       where: { application_id: application.id },
@@ -513,6 +519,7 @@ const getAdminApplicationById = async (req, res, next) => {
         profiles: {
           individual: individualProfile,
           corporate: corporateProfile,
+          student: application.studentProfile,
         },
         statusHistory,
       },

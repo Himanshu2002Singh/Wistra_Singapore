@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Eye, Search, X } from 'lucide-react'
+import { Download, Eye, Search, X } from 'lucide-react'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { useAuth } from '@/context/AuthContext'
 import {
   approveApplicationApi,
   getAdminApplicationByIdApi,
   getAdminApplicationsApi,
+  getStudentApplicationDocumentApi,
   rejectApplicationApi,
   requestClarificationApi,
   reviewApplicationApi,
@@ -24,7 +25,7 @@ const STATUSES = [
 
 const humanize = (value) => String(value ?? '').replaceAll('_', ' ')
 const dateValue = (value) => value ? new Date(value).toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
-const applicantName = (applicant) => [applicant?.first_name, applicant?.last_name].filter(Boolean).join(' ') || '—'
+const applicantName = (applicant, student) => [applicant?.first_name || student?.first_name, applicant?.last_name || student?.last_name].filter(Boolean).join(' ') || '—'
 const errorMessage = (error, subject) => {
   const status = error.response?.status
   if (status === 401) return 'Your session has expired. Sign in again to continue.'
@@ -65,6 +66,7 @@ export default function Applications() {
   const [remarks, setRemarks] = useState('')
   const [actionError, setActionError] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [documentLoading, setDocumentLoading] = useState(false)
   const requestSequence = useRef(0)
   const detailSequence = useRef(0)
   const actionLock = useRef(false)
@@ -164,6 +166,26 @@ export default function Applications() {
   const isActionable = application && ['PENDING', 'UNDER_REVIEW', 'CLARIFICATION_REQUIRED'].includes(application.status)
   const canMoveToReview = canReview && ['PENDING', 'CLARIFICATION_REQUIRED'].includes(application?.status)
   const canDecide = application?.status === 'UNDER_REVIEW'
+  const downloadStudentDocument = async () => {
+    if (!application || documentLoading) return
+    setDocumentLoading(true)
+    setActionError('')
+    try {
+      const blob = await getStudentApplicationDocumentApi(application.id)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = detail?.profiles?.student?.document_original_name || 'proof-of-enrollment'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (downloadError) {
+      setActionError(errorMessage(downloadError, 'Student document'))
+    } finally {
+      setDocumentLoading(false)
+    }
+  }
 
   return <AdminLayout><div className="admin-sample-module admin-applications-module">
     <div className="admin-sample-title"><div><p className="admin-kicker"><span /> Admin workspace</p><h1>Membership Applications</h1><p>Review membership applications and applicant details.</p></div></div>
@@ -171,13 +193,13 @@ export default function Applications() {
     <div className="admin-sample-controls">
       <label><Search size={16} /><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} placeholder="Search applications..." aria-label="Search applications" /></label>
       <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }} aria-label="Filter by application status"><option value="">All statuses</option>{STATUSES.map((item) => <option key={item} value={item}>{humanize(item)}</option>)}</select>
-      <select value={membershipType} onChange={(event) => { setMembershipType(event.target.value); setPage(1) }} aria-label="Filter by membership type"><option value="">All membership types</option><option value="INDIVIDUAL">Individual</option><option value="CORPORATE">Corporate</option></select>
+      <select value={membershipType} onChange={(event) => { setMembershipType(event.target.value); setPage(1) }} aria-label="Filter by membership type"><option value="">All membership types</option><option value="INDIVIDUAL">Individual</option><option value="CORPORATE">Corporate</option><option value="STUDENT">Student</option></select>
     </div>
     {listError && <div className="admin-application-error" role="alert">{listError}<button type="button" onClick={loadApplications}>Try again</button></div>}
     <div className="admin-sample-table-wrap"><table className="admin-sample-table"><thead><tr><th>Applicant</th><th>Email</th><th>Membership type</th><th>Application ID</th><th>Submitted</th><th>Updated</th><th>Status</th><th aria-label="Actions">Actions</th></tr></thead><tbody>
       {loading ? <tr><td colSpan="8" className="admin-sample-empty" role="status">Loading applications…</td></tr> : applications.length ? applications.map((item) => <tr key={item.id}>
-        <td data-label="Applicant">{applicantName(item.applicant)}</td>
-        <td data-label="Email">{item.applicant?.email || '—'}</td>
+        <td data-label="Applicant">{applicantName(item.applicant, item.studentProfile)}</td>
+        <td data-label="Email">{item.applicant?.email || item.studentProfile?.email || '—'}</td>
         <td data-label="Membership type">{humanize(item.membership_type)}</td>
         <td data-label="Application ID">{item.application_number || item.id}</td>
         <td data-label="Submitted">{dateValue(item.submitted_at)}</td>
@@ -192,11 +214,13 @@ export default function Applications() {
       <button className="admin-sample-modal-close" onClick={closeDetail} aria-label="Close application details"><X size={18} /></button>
       <p className="admin-kicker"><span /> Application detail</p>
       {detailLoading ? <p className="admin-application-state" role="status">Loading application details…</p> : detailError ? <div className="admin-application-error" role="alert">{detailError}<button type="button" onClick={() => loadDetail(selectedId)}>Try again</button></div> : application && <>
-        <h2>{applicantName(application.applicant)}</h2>
+        <h2>{applicantName(application.applicant, application.studentProfile)}</h2>
         <DetailRows title="Application" values={application} />
         <DetailRows title="Applicant" values={application.applicant} />
         <DetailRows title="Individual profile" values={detail.profiles?.individual} />
         <DetailRows title="Corporate profile" values={detail.profiles?.corporate} />
+        <DetailRows title="Student information" values={detail.profiles?.student} />
+        {detail.profiles?.student?.document_original_name && <section className="admin-application-detail-section"><h3>Proof of enrollment</h3><p>{detail.profiles.student.document_original_name} · {Math.ceil(detail.profiles.student.document_size / 1024)} KB</p><button type="button" onClick={downloadStudentDocument} disabled={documentLoading} className="admin-sample-view mt-3 inline-flex items-center gap-2"> <Download size={14} /> {documentLoading ? 'Downloading…' : 'Download document'}</button></section>}
         {Array.isArray(detail.statusHistory) && detail.statusHistory.length > 0 && <section className="admin-application-detail-section"><h3>Status history</h3><ul className="admin-application-history">{detail.statusHistory.map((entry) => <li key={entry.id}><strong>{humanize(entry.old_status || 'NEW')} → {humanize(entry.new_status)}</strong><span>{dateValue(entry.created_at)}{entry.changedByUser ? ` · ${applicantName(entry.changedByUser)}` : ''}</span>{entry.reason && <p>{entry.reason}</p>}</li>)}</ul></section>}
         {notice && <div className="admin-sample-notice" role="status">{notice}</div>}
         {actionError && <div className="admin-application-error" role="alert">{actionError}</div>}

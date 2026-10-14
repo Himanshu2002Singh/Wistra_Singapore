@@ -16,6 +16,7 @@ const Payment = require('./Payment');
 const Invoice = require('./Invoice');
 const Event = require('./Event');
 const NewsArticle = require('./NewsArticle');
+const StudentProfile = require('./StudentProfile');
 
 // Initialize all models
 User.init(sequelize);
@@ -33,6 +34,7 @@ Payment.init(sequelize);
 Invoice.init(sequelize);
 Event.init(sequelize);
 NewsArticle.init(sequelize);
+StudentProfile.init(sequelize);
 
 // Store models in an object for association setup
 const models = {
@@ -51,6 +53,7 @@ const models = {
   Invoice,
   Event,
   NewsArticle,
+  StudentProfile,
 };
 
 // Setup associations

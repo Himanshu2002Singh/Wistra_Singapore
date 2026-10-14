@@ -22,7 +22,7 @@ class MembershipApplication extends Model {
           allowNull: true,
         },
         membership_type: {
-          type: DataTypes.ENUM('INDIVIDUAL', 'CORPORATE'),
+          type: DataTypes.ENUM('INDIVIDUAL', 'CORPORATE', 'STUDENT'),
           allowNull: false,
         },
         status: {
@@ -88,6 +88,7 @@ class MembershipApplication extends Model {
       foreignKey: 'application_id',
       as: 'membership',
     });
+    MembershipApplication.hasOne(models.StudentProfile, { foreignKey: 'application_id', as: 'studentProfile' });
   }
 }
 

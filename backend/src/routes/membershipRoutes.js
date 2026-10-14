@@ -11,8 +11,11 @@ const {
 } = require('../controllers/membershipApplicationController');
 
 const { getMyActivity, getMyMembership, updateMyProfile } = require('../controllers/memberPortalController');
+const { studentApplicationUpload } = require('../middleware/studentApplicationUpload');
+const { submitStudentApplication } = require('../controllers/studentApplicationController');
 
 // Applicant routes
+router.post('/applications/student', studentApplicationUpload, submitStudentApplication);
 router.post('/applications', authenticateToken, requireRole('MEMBER', { allowSuperAdmin: false }), submitApplication);
 router.get('/applications/me', authenticateToken, requireRole('MEMBER', { allowSuperAdmin: false }), getMyApplications);
 router.get('/applications/me/:id', authenticateToken, requireRole('MEMBER', { allowSuperAdmin: false }), getMyApplicationById);

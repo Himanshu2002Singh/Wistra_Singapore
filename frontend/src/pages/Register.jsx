@@ -113,26 +113,26 @@ export default function Register() {
             </Link>
           </div>
 
-          {/* STUDENT CARD — application details await client confirmation */}
+          {/* STUDENT CARD */}
           <div className="registration-choice bg-white/5 border border-white/10 p-8 md:p-10 rounded-lg flex flex-col justify-between hover:border-[var(--teal)] transition group">
             <div>
               <div className="w-12 h-12 rounded-full bg-[var(--teal)]/20 text-[var(--teal)] flex items-center justify-center mb-6">
                 <GraduationCap size={24} />
               </div>
               <p className="text-xs font-bold tracking-widest uppercase text-[var(--teal)] mb-2">STUDENT MEMBERSHIP</p>
-              <h3 className="font-[var(--serif)] text-3xl text-white mb-4">Student</h3>
+              <h3 className="font-[var(--serif)] text-3xl text-white mb-4">Student Membership</h3>
               <p className="text-sm text-gray-300 mb-6 leading-relaxed">
-                Student membership application details are being confirmed with WISTA Singapore.
+                Apply with your education details and current proof of enrollment.
               </p>
               <div className="text-sm font-semibold text-[var(--teal)] mb-8">
-                Application details to be provided
+                Application reviewed by WISTA Singapore
               </div>
             </div>
             <Link
               to="/register/student"
               className="w-full py-4 border border-white group-hover:bg-white group-hover:text-[var(--ink)] text-white font-bold tracking-widest uppercase text-xs transition flex items-center justify-center gap-2"
             >
-              Student application details <ArrowUpRight size={16} />
+              Apply as Student <ArrowUpRight size={16} />
             </Link>
           </div>
         </div>

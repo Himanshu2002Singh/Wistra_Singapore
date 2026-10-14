@@ -5,6 +5,18 @@ export const submitApplicationApi = async (applicationData) => {
   return response.data
 }
 
+export const submitStudentApplicationApi = async (applicationData) => {
+  const response = await api.post('/membership/applications/student', applicationData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data
+}
+
+export const getStudentApplicationDocumentApi = async (id) => {
+  const response = await api.get(`/admin/applications/${id}/student-document`, { responseType: 'blob' })
+  return response.data
+}
+
 export const getMyApplicationsApi = async () => {
   const response = await api.get('/membership/applications/me')
   return response.data

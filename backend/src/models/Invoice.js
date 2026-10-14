@@ -30,7 +30,7 @@ class Invoice extends Model {
           allowNull: false,
         },
         membership_type: {
-          type: DataTypes.ENUM('INDIVIDUAL', 'CORPORATE'),
+          type: DataTypes.ENUM('INDIVIDUAL', 'CORPORATE', 'STUDENT'),
           allowNull: false,
         },
         subtotal: {

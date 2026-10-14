@@ -12,8 +12,16 @@ const {
   rejectApplication,
   requestClarification,
 } = require('../controllers/membershipApplicationController');
+const { downloadStudentDocument } = require('../controllers/studentApplicationController');
 
 // Admin / EXCO Application Management routes
+router.get(
+  '/:id/student-document',
+  authenticateToken,
+  requirePermission('applications.read', 'applications.manage', 'applications.view'),
+  downloadStudentDocument
+);
+
 router.get(
   '/',
   authenticateToken,

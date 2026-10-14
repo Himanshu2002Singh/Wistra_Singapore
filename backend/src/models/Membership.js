@@ -21,7 +21,7 @@ class Membership extends Model {
           allowNull: true,
         },
         membership_type: {
-          type: DataTypes.ENUM('INDIVIDUAL', 'CORPORATE'),
+          type: DataTypes.ENUM('INDIVIDUAL', 'CORPORATE', 'STUDENT'),
           allowNull: false,
         },
         membership_number: {
