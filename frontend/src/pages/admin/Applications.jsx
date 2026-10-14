@@ -218,7 +218,11 @@ export default function Applications() {
         <DetailRows title="Application" values={application} />
         <DetailRows title="Applicant" values={application.applicant} />
         <DetailRows title="Individual profile" values={detail.profiles?.individual} />
-        <DetailRows title="Corporate profile" values={detail.profiles?.corporate} />
+        <DetailRows title="Industry classification" values={{
+          main_category: detail.profiles?.corporate?.industry_main_category,
+          sub_category: detail.profiles?.corporate?.industry_sub_category,
+        }} />
+        <DetailRows title="Corporate profile" values={Object.fromEntries(Object.entries(detail.profiles?.corporate || {}).filter(([key]) => !key.startsWith('industry_')))} />
         <DetailRows title="Student information" values={detail.profiles?.student} />
         {detail.profiles?.student?.document_original_name && <section className="admin-application-detail-section"><h3>Proof of enrollment</h3><p>{detail.profiles.student.document_original_name} · {Math.ceil(detail.profiles.student.document_size / 1024)} KB</p><button type="button" onClick={downloadStudentDocument} disabled={documentLoading} className="admin-sample-view mt-3 inline-flex items-center gap-2"> <Download size={14} /> {documentLoading ? 'Downloading…' : 'Download document'}</button></section>}
         {Array.isArray(detail.statusHistory) && detail.statusHistory.length > 0 && <section className="admin-application-detail-section"><h3>Status history</h3><ul className="admin-application-history">{detail.statusHistory.map((entry) => <li key={entry.id}><strong>{humanize(entry.old_status || 'NEW')} → {humanize(entry.new_status)}</strong><span>{dateValue(entry.created_at)}{entry.changedByUser ? ` · ${applicantName(entry.changedByUser)}` : ''}</span>{entry.reason && <p>{entry.reason}</p>}</li>)}</ul></section>}

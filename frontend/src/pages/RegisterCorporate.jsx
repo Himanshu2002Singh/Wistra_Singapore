@@ -5,6 +5,8 @@ import PageIntro from '@/components/editorial/PageIntro'
 import { ArrowUpRight, CheckCircle2, ArrowLeft, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { submitApplicationApi } from '@/services/membershipService'
+import industryCategories from '../../../shared/industry-classification.json'
+import { getIndustrySubCategories, updateCorporateApplicationField } from '@/utils/industryClassification'
 import corporateHeroBg from '../assets/images/wista/membership/membership-networking.jpg'
 
 const getSubmissionError = (error) => {
@@ -24,6 +26,8 @@ export default function RegisterCorporate() {
   const [formData, setFormData] = useState({
     companyName: '',
     companyDescription: '',
+    industry_main_category: '',
+    industry_sub_category: '',
     invoicingContactPerson: '',
     invoicingEmail: '',
     invoicingAddress: '',
@@ -42,10 +46,7 @@ export default function RegisterCorporate() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }))
+    setFormData((prev) => updateCorporateApplicationField(prev, name, type === 'checkbox' ? checked : value))
   }
 
   const handleSubmit = async (e) => {
@@ -79,6 +80,8 @@ export default function RegisterCorporate() {
         membership_type: 'CORPORATE',
         company_name: formData.companyName,
         company_description: formData.companyDescription,
+        industry_main_category: formData.industry_main_category,
+        industry_sub_category: formData.industry_sub_category,
         invoicing_address: formData.invoicingAddress,
         invoicing_contact_person: formData.invoicingContactPerson,
         invoicing_email: formData.invoicingEmail,
@@ -233,10 +236,54 @@ export default function RegisterCorporate() {
                 </div>
               </div>
 
-              {/* SECTION 2: INVOICING CONTACT */}
+              {/* SECTION 2: INDUSTRY CLASSIFICATION */}
               <div className="space-y-6">
                 <h4 className="text-xs font-bold tracking-widest uppercase text-[#5ee5e9] border-b border-white/15 pb-2.5">
-                  02. Billing & Invoicing Contact
+                  02. Industry Classification
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="form-group">
+                    <label htmlFor="industry_main_category" className="text-slate-100 text-xs tracking-wider uppercase font-semibold mb-2 block">
+                      Main Category <span className="text-[#e85d4a] font-bold">*</span>
+                    </label>
+                    <select
+                      id="industry_main_category"
+                      name="industry_main_category"
+                      required
+                      value={formData.industry_main_category}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-[#071626] border border-slate-400/40 text-white rounded-md focus:border-[#5ee5e9] focus:ring-2 focus:ring-[#5ee5e9]/30 focus:outline-none transition duration-150"
+                    >
+                      <option value="">Select a main category</option>
+                      {Object.keys(industryCategories).map((category) => <option key={category} value={category}>{category}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="industry_sub_category" className="text-slate-100 text-xs tracking-wider uppercase font-semibold mb-2 block">
+                      Sub-category <span className="text-[#e85d4a] font-bold">*</span>
+                    </label>
+                    <select
+                      id="industry_sub_category"
+                      name="industry_sub_category"
+                      required
+                      disabled={!formData.industry_main_category}
+                      value={formData.industry_sub_category}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-[#071626] border border-slate-400/40 text-white rounded-md focus:border-[#5ee5e9] focus:ring-2 focus:ring-[#5ee5e9]/30 focus:outline-none transition duration-150 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <option value="">Select a sub-category</option>
+                      {getIndustrySubCategories(formData.industry_main_category).map((subCategory) => <option key={subCategory} value={subCategory}>{subCategory}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 3: INVOICING CONTACT */}
+              <div className="space-y-6">
+                <h4 className="text-xs font-bold tracking-widest uppercase text-[#5ee5e9] border-b border-white/15 pb-2.5">
+                  03. Billing & Invoicing Contact
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -290,10 +337,10 @@ export default function RegisterCorporate() {
                 )}
               </div>
 
-              {/* SECTION 3: COMMUNICATIONS & RECIPIENTS */}
+              {/* SECTION 4: COMMUNICATIONS & RECIPIENTS */}
               <div className="space-y-6">
                 <h4 className="text-xs font-bold tracking-widest uppercase text-[#5ee5e9] border-b border-white/15 pb-2.5">
-                  03. WISTA Communication Contacts
+                  04. WISTA Communication Contacts
                 </h4>
 
                 <div className="form-group">

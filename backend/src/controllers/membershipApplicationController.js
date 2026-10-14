@@ -13,6 +13,7 @@ const {
 } = require('../models');
 const { generateApplicationNumber } = require('../utils/applicationNumber');
 const { Op } = require('sequelize');
+const industryCategories = require('../../../shared/industry-classification.json');
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const validateApplicationBody = (body) => {
@@ -20,7 +21,7 @@ const validateApplicationBody = (body) => {
     'membership_type', 'company', 'designation', 'biography', 'linkedin_url', 'photo_url',
     'nationality', 'date_of_birth', 'invoicing_address', 'phone', 'company_name',
     'company_description', 'invoicing_contact_person', 'invoicing_email', 'contact_phone',
-    'main_contacts', 'additional_contacts', 'representatives',
+    'main_contacts', 'additional_contacts', 'representatives', 'industry_main_category', 'industry_sub_category',
   ]);
   const errors = {};
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
@@ -41,6 +42,15 @@ const validateApplicationBody = (body) => {
       : [];
   for (const field of requiredByType) {
     if (typeof body[field] !== 'string' || !body[field].trim()) errors[field] = 'This field is required.';
+  }
+  if (body.membership_type === 'CORPORATE') {
+    const subCategories = industryCategories[body.industry_main_category];
+    if (!subCategories) errors.industry_main_category = 'Choose a valid main industry category.';
+    if (!Array.isArray(subCategories) || !subCategories.includes(body.industry_sub_category)) {
+      errors.industry_sub_category = 'Choose a sub-category belonging to the selected main category.';
+    }
+  } else if (body.industry_main_category !== undefined || body.industry_sub_category !== undefined) {
+    errors.industry_main_category = 'Industry classification is only supported for corporate applications.';
   }
 
   const maxLengths = {
@@ -170,6 +180,8 @@ const submitApplication = async (req, res, next) => {
       main_contacts,
       additional_contacts,
       representatives,
+      industry_main_category,
+      industry_sub_category,
     } = applicationData;
 
     const applicant = await User.findByPk(userId, { transaction, lock: transaction.LOCK.UPDATE });
@@ -247,6 +259,8 @@ const submitApplication = async (req, res, next) => {
           user_id: userId,
           company_name: company_name || `${req.user.first_name}'s Company`,
           company_description: company_description || null,
+          industry_main_category,
+          industry_sub_category,
           address: invoicing_address || null,
           invoicing_contact_person: invoicing_contact_person || null,
           contact_email: invoicing_email || req.user.email,
@@ -814,6 +828,7 @@ const requestClarification = async (req, res, next) => {
 };
 
 module.exports = {
+  validateApplicationBody,
   submitApplication,
   getMyApplications,
   getMyApplicationById,

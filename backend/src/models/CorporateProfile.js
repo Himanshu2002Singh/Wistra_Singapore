@@ -24,6 +24,14 @@ class CorporateProfile extends Model {
           type: DataTypes.TEXT,
           allowNull: true,
         },
+        industry_main_category: {
+          type: DataTypes.STRING(100),
+          allowNull: true,
+        },
+        industry_sub_category: {
+          type: DataTypes.STRING(255),
+          allowNull: true,
+        },
         website: {
           type: DataTypes.STRING(255),
           allowNull: true,

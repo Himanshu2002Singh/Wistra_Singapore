@@ -1,0 +1,45 @@
+{
+  "Ship Owners & Operators": [
+    "Shipowner/ Operator",
+    "Ship Manager",
+    "Charterer",
+    "Ship Broker",
+    "Cargo Owner/ Shipper"
+  ],
+  "Port & Logistics Operations": [
+    "Port / Terminal Operator",
+    "Freight Forwarder / 3PL",
+    "Port Agent / Liner Agent",
+    "Customs Broker & Clearance",
+    "Warehousing & Inland Transport"
+  ],
+  "Technical & Marine Services": [
+    "Classification Society",
+    "Shipyard / Ship Repair",
+    "Marine Surveyor & Consultant",
+    "Crewing / Manning Agency",
+    "Naval Architect & Marine Engineer"
+  ],
+  "Professional Services": [
+    "Maritime Lawyer / Legal",
+    "Marine Insurance / P&I Club",
+    "Ship Finance, Banking and Leasing",
+    "Maritime Consultant",
+    "Corporate Services (Accounting, Tax, Corporate secretary etc)"
+  ],
+  "Shipyards, Supply & Bunkering": [
+    "Shipyard/ Ship Repair",
+    "Marine Fuel / Bunkering",
+    "Ship Chandler / Provisions",
+    "Marine Equipment & Spare Parts"
+  ],
+  "Technology & Innovation": [
+    "Maritime Software / Tech Provider",
+    "Green Tech / Decarbonisation"
+  ],
+  "Authorities & Education": [
+    "Port Authority / Government",
+    "Industry Association & NGO",
+    "Maritime Academy / Training"
+  ]
+}
