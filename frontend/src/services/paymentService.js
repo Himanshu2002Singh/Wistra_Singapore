@@ -10,6 +10,16 @@ export const submitPaymentDetailsApi = async (id, submissionData) => {
   return response.data
 }
 
+export const getPaymentInstructionsApi = async () => {
+  const response = await api.get('/payments/instructions')
+  return response.data
+}
+
+export const getPayNowQrApi = async () => {
+  const response = await api.get('/payments/instructions/paynow-qr', { responseType: 'blob' })
+  return response.data
+}
+
 export const getMyPaymentsApi = async () => {
   const response = await api.get('/payments/my')
   return response.data
@@ -27,6 +37,11 @@ export const getAdminPaymentsApi = async (params) => {
 
 export const getAdminPaymentByIdApi = async (id) => {
   const response = await api.get(`/admin/payments/${id}`)
+  return response.data
+}
+
+export const getAdminPaymentProofApi = async (id, submissionId) => {
+  const response = await api.get(`/admin/payments/${id}/submissions/${submissionId}/proof`, { responseType: 'blob' })
   return response.data
 }
 

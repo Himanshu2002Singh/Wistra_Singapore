@@ -85,9 +85,9 @@ export default function Login() {
                 <label className="text-white text-xs tracking-widest uppercase font-bold flex items-center gap-2">
                   <Lock size={14} className="text-[var(--teal)]" /> Password
                 </label>
-                <a href="#forgot" onClick={(e) => { e.preventDefault(); alert('Password reset link sent to your email.'); }} className="text-xs text-[var(--teal)] hover:underline">
+                <Link to="/forgot-password" className="text-xs text-[var(--teal)] hover:underline">
                   Forgot password?
-                </a>
+                </Link>
               </div>
               <input 
                 type="password" 

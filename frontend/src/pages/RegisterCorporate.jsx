@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
-import { ArrowUpRight, CheckCircle2, ArrowLeft, AlertCircle } from 'lucide-react'
+import { ArrowUpRight, CheckCircle2, ArrowLeft, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { submitApplicationApi } from '@/services/membershipService'
 import industryCategories from '../../../shared/industry-classification.json'
@@ -41,6 +41,7 @@ export default function RegisterCorporate() {
   const [submitted, setSubmitted] = useState(false)
   const [submittedApp, setSubmittedApp] = useState(null)
   const [errorMessage, setErrorMessage] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   const { isAuthenticated, register, login } = useAuth()
 
@@ -164,8 +165,8 @@ export default function RegisterCorporate() {
                 <Link to="/" className="px-6 py-3 bg-[var(--coral)] hover:bg-[#f27663] text-white font-bold tracking-widest uppercase text-xs rounded transition">
                   Return to Home
                 </Link>
-                <Link to="/login" className="application-login-link px-6 py-3 border border-white font-bold tracking-widest uppercase text-xs rounded transition">
-                  Proceed to Login
+                <Link to="/member" className="application-login-link px-6 py-3 border border-white font-bold tracking-widest uppercase text-xs rounded transition">
+                  Go to Dashboard
                 </Link>
               </div>
             </div>
@@ -323,16 +324,21 @@ export default function RegisterCorporate() {
                     <label className="text-slate-100 text-xs tracking-wider uppercase font-semibold mb-2 block">
                       Corporate Account Password <span className="text-[#e85d4a] font-bold">*</span>
                     </label>
-                    <input
-                      type="password"
-                      name="password"
-                      required={!isAuthenticated}
-                      minLength={8}
-                      value={formData.password}
-                      onChange={handleChange}
-                      placeholder="At least 8 characters"
-                      className="w-full px-4 py-3 bg-[#071626] border border-slate-400/40 text-white rounded-md placeholder:text-slate-400 focus:border-[#5ee5e9] focus:ring-2 focus:ring-[#5ee5e9]/30 focus:outline-none transition duration-150"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        name="password"
+                        required={!isAuthenticated}
+                        minLength={8}
+                        value={formData.password}
+                        onChange={handleChange}
+                        placeholder="At least 8 characters"
+                        className="w-full px-4 py-3 pr-12 bg-[#071626] border border-slate-400/40 text-white rounded-md placeholder:text-slate-400 focus:border-[#5ee5e9] focus:ring-2 focus:ring-[#5ee5e9]/30 focus:outline-none transition duration-150"
+                      />
+                      <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-[#5ee5e9]" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}>
+                        {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

@@ -6,9 +6,16 @@ export const submitApplicationApi = async (applicationData) => {
 }
 
 export const submitStudentApplicationApi = async (applicationData) => {
+  // Override the API client's default JSON content type so Axios preserves the
+  // FormData body. The browser then supplies the multipart boundary.
   const response = await api.post('/membership/applications/student', applicationData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
+  return response.data
+}
+
+export const getMyStudentApplicationApi = async () => {
+  const response = await api.get('/membership/applications/student')
   return response.data
 }
 

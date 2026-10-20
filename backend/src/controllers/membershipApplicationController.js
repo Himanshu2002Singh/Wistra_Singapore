@@ -10,8 +10,13 @@ const {
   MembershipStatusHistory,
   AuditLog,
   StudentProfile,
+  Payment,
+  Invoice,
 } = require('../models');
 const { generateApplicationNumber } = require('../utils/applicationNumber');
+const { calculateMembershipFee } = require('../services/feeCalculationService');
+const { calculateMembershipPeriod } = require('../services/membershipActivationService');
+const { generatePaymentReference, generateInvoiceNumber } = require('../utils/referenceGenerator');
 const { Op } = require('sequelize');
 const industryCategories = require('../../../shared/industry-classification.json');
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -347,6 +352,7 @@ const getMyApplications = async (req, res, next) => {
     const applications = await MembershipApplication.findAll({
       where: { user_id: userId },
       order: [['created_at', 'DESC']],
+      include: [{ model: StudentProfile, as: 'studentProfile', attributes: { exclude: ['document_storage_key'] } }],
       attributes: [
         'id',
         'application_number',
@@ -374,6 +380,7 @@ const getMyApplications = async (req, res, next) => {
         profiles: {
           individual: individualProfile,
           corporate: corporateProfile,
+          student: applications.find(({ studentProfile }) => studentProfile)?.studentProfile || null,
         },
       },
     });
@@ -392,6 +399,7 @@ const getMyApplicationById = async (req, res, next) => {
 
     const application = await MembershipApplication.findOne({
       where: { id, user_id: userId },
+      include: [{ model: StudentProfile, as: 'studentProfile', attributes: { exclude: ['document_storage_key'] } }],
       attributes: [
         'id',
         'application_number',
@@ -623,13 +631,21 @@ const approveApplication = async (req, res, next) => {
     transaction = await sequelize.transaction();
     const { id } = req.params;
 
-    const application = await MembershipApplication.findByPk(id, { transaction });
+    const application = await MembershipApplication.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
     if (!application) {
       await transaction.rollback();
       return res.status(404).json({ success: false, message: 'Application not found.' });
     }
 
-    if (!isAllowedTransition(application.status, 'PAYMENT_PENDING')) {
+    const alreadyApproved = application.status === 'PAYMENT_PENDING';
+    if (alreadyApproved) {
+      const currentPayment = await Payment.findOne({ where: { application_id: application.id }, include: [{ model: Invoice, as: 'invoice' }], transaction, lock: transaction.LOCK.UPDATE });
+      if (currentPayment?.invoice) {
+        await transaction.commit();
+        return res.json({ success: true, message: 'Application is already approved and its invoice is ready.', data: { application, payment: currentPayment, invoice: currentPayment.invoice } });
+      }
+    }
+    if (!alreadyApproved && !isAllowedTransition(application.status, 'PAYMENT_PENDING')) {
       await transaction.rollback();
       return res.status(409).json({
         success: false,
@@ -638,14 +654,43 @@ const approveApplication = async (req, res, next) => {
     }
 
     const oldStatus = application.status;
-    application.status = 'PAYMENT_PENDING';
-    application.approved_at = new Date();
-    application.reviewed_at = new Date();
-    application.reviewed_by = req.user.id;
-    application.review_remarks = remarks.value || 'Application approved by EXCO. Payment requested.';
-    await application.save({ transaction });
+    let feeDetails;
+    try { feeDetails = calculateMembershipFee({ membershipType: application.membership_type, discount: 0 }); }
+    catch (error) { await transaction.rollback(); return res.status(error.statusCode || 409).json({ success: false, message: error.message }); }
+    let existingPayment = await Payment.findOne({ where: { application_id: application.id }, transaction, lock: transaction.LOCK.UPDATE });
+    const period = calculateMembershipPeriod(new Date());
+    const dueAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    if (!existingPayment) {
+      const paymentRef = await generatePaymentReference();
+      existingPayment = await Payment.create({
+        payment_reference: paymentRef, application_id: application.id, user_id: application.user_id,
+        purpose: 'MEMBERSHIP', amount: feeDetails.total, currency: feeDetails.currency,
+        payment_method: 'BANK_TRANSFER', payment_status: 'PENDING',
+      }, { transaction });
+    }
+    const existingInvoice = await Invoice.findOne({ where: { payment_id: existingPayment.id }, transaction, lock: transaction.LOCK.UPDATE });
+    if (!existingInvoice) {
+      const invoiceNumber = await generateInvoiceNumber();
+      await Invoice.create({
+        invoice_number: invoiceNumber, payment_id: existingPayment.id, application_id: application.id,
+        user_id: application.user_id, membership_type: application.membership_type,
+        description: `${application.membership_type} membership (${period.start_date} to ${period.end_date})`,
+        period_start: period.start_date, period_end: period.end_date,
+        subtotal: feeDetails.subtotal, discount: 0, total: feeDetails.total, currency: feeDetails.currency,
+        status: 'ISSUED', issued_at: new Date(), due_at: dueAt,
+      }, { transaction });
+    }
 
-    await MembershipStatusHistory.create(
+    if (!alreadyApproved) {
+      application.status = 'PAYMENT_PENDING';
+      application.approved_at = new Date();
+      application.reviewed_at = new Date();
+      application.reviewed_by = req.user.id;
+      application.review_remarks = remarks.value || 'Application approved by EXCO. Payment requested.';
+      await application.save({ transaction });
+    }
+
+    if (!alreadyApproved) await MembershipStatusHistory.create(
       {
         application_id: application.id,
         old_status: oldStatus,
@@ -656,7 +701,7 @@ const approveApplication = async (req, res, next) => {
       { transaction }
     );
 
-    await AuditLog.create(
+    if (!alreadyApproved) await AuditLog.create(
       {
         user_id: req.user.id,
         action: 'APPROVE_APPLICATION',
@@ -673,9 +718,9 @@ const approveApplication = async (req, res, next) => {
 
     await transaction.commit();
 
-    return res.json({
+      return res.json({
       success: true,
-      message: 'Application approved. Payment requested from applicant.',
+        message: 'Application approved. Invoice and payment record are available in the Member Portal.',
       data: application,
     });
   } catch (error) {

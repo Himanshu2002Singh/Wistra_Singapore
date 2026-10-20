@@ -57,6 +57,8 @@ const run = async () => {
   let applicationId;
   let storageKey;
   let adminUserId;
+  let studentUserId;
+  let otherStudentUserId;
   const legacyUserIds = [];
   try {
     const adminRole = await Role.findOne({ where: { name: 'SUPER_ADMIN' } });
@@ -69,37 +71,100 @@ const run = async () => {
     const adminToken = generateToken({ sub: admin.id, role: 'SUPER_ADMIN' });
     const adminHeaders = { Authorization: `Bearer ${adminToken}` };
 
-    const invalidResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', body: buildForm({ invalidDocument: true }) });
-    assert.equal(invalidResponse.status, 400, 'Rejects invalid supporting document content');
+    const unauthenticatedSubmit = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', body: buildForm() });
+    assert.equal(unauthenticatedSubmit.status, 401, 'Requires an authenticated applicant account');
+    const studentPassword = `Temporary-${Date.now()}-Credential!`;
+    const accountResponse = await fetch(`${baseUrl}/auth/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: studentPassword, first_name: applicationFields.first_name, last_name: applicationFields.last_name, phone: applicationFields.mobile_number }),
+    });
+    assert.equal(accountResponse.status, 201, 'Creates a normal MEMBER account for the student applicant');
+    const account = await accountResponse.json();
+    studentUserId = account.data.user.id;
+    assert.equal(account.data.user.role.name, 'MEMBER', 'Student applicant receives the standard member role');
+    assert.equal(account.data.user.password_hash, undefined, 'Registration response never exposes password hashes');
+    const studentHeaders = { Authorization: `Bearer ${account.data.token}` };
+    const emptyStudentApplicationResponse = await fetch(`${baseUrl}/membership/applications/student`, { headers: studentHeaders });
+    assert.equal(emptyStudentApplicationResponse.status, 200, 'A new student account can load the student application resource');
+    assert.equal((await emptyStudentApplicationResponse.json()).data.application, null, 'A new student account receives an empty application instead of a missing-resource error');
+    const duplicateAccountResponse = await fetch(`${baseUrl}/auth/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: studentPassword, first_name: applicationFields.first_name, last_name: applicationFields.last_name }),
+    });
+    assert.equal(duplicateAccountResponse.status, 409, 'Recognizes an already registered student account so the form can offer sign-in');
 
-    const missingResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', body: buildForm({ includeDocument: false }) });
+    const invalidResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', headers: studentHeaders, body: buildForm({ invalidDocument: true }) });
+    assert.equal(invalidResponse.status, 400, 'Rejects invalid supporting document content');
+    assert.equal(await MembershipApplication.count({ where: { user_id: studentUserId } }), 0, 'An invalid application does not create a partial record and the account remains available for retry');
+
+    const missingResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', headers: studentHeaders, body: buildForm({ includeDocument: false }) });
     assert.equal(missingResponse.status, 400, 'Requires a supporting document');
 
-    const invalidPhoneResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', body: buildForm({ overrides: { mobile_number: 'abc' } }) });
+    const invalidPhoneResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', headers: studentHeaders, body: buildForm({ overrides: { mobile_number: 'abc' } }) });
     assert.equal(invalidPhoneResponse.status, 400, 'Validates international mobile number input');
-    const invalidDateResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', body: buildForm({ overrides: { date_of_birth: '2024-02-30' } }) });
+    const invalidDateResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', headers: studentHeaders, body: buildForm({ overrides: { date_of_birth: '2024-02-30' } }) });
     assert.equal(invalidDateResponse.status, 400, 'Rejects invalid calendar dates');
-    const invalidEmailResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', body: buildForm({ overrides: { email: 'not-an-email' } }) });
+    const invalidEmailResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', headers: studentHeaders, body: buildForm({ overrides: { email: 'not-an-email' } }) });
     assert.equal(invalidEmailResponse.status, 400, 'Validates email format');
-    const oversizedResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', body: buildForm({ oversizedDocument: true }) });
+    const oversizedResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', headers: studentHeaders, body: buildForm({ oversizedDocument: true }) });
     assert.equal(oversizedResponse.status, 413, 'Rejects documents over the configured size limit');
 
-    const submitResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', body: buildForm() });
+    const emailMismatchResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', headers: studentHeaders, body: buildForm({ overrides: { email: `different-${email}` } }) });
+    assert.equal(emailMismatchResponse.status, 403, 'Cannot associate another email with the authenticated account');
+    const submitResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', headers: studentHeaders, body: buildForm() });
     assert.equal(submitResponse.status, 201, 'Accepts valid student application');
     const submitted = await submitResponse.json();
     applicationId = submitted.data.id;
+    const studentApplicationResponse = await fetch(`${baseUrl}/membership/applications/student`, { headers: studentHeaders });
+    assert.equal(studentApplicationResponse.status, 200, 'A student can read the application after submitting it');
+    const studentApplication = (await studentApplicationResponse.json()).data.application;
+    assert.equal(studentApplication.application_number, submitted.data.application_number, 'The student application resource returns the submitted application');
+    assert.equal(studentApplication.studentProfile.document_storage_key, undefined, 'The student application resource hides the private document storage key');
 
-    const duplicateResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', body: buildForm() });
+    const duplicateResponse = await fetch(`${baseUrl}/membership/applications/student`, { method: 'POST', headers: studentHeaders, body: buildForm() });
     assert.equal(duplicateResponse.status, 409, 'Rejects duplicate email/application submission');
 
     const application = await MembershipApplication.findByPk(applicationId);
     const profile = await StudentProfile.findOne({ where: { application_id: applicationId } });
     assert.equal(application.membership_type, 'STUDENT', 'Persists distinct membership type');
+    assert.equal(String(application.user_id), String(studentUserId), 'Links the Student application to the authenticated account');
     assert.equal(application.status, 'PENDING', 'Persists application in existing review workflow');
     assert.equal(profile.email, email, 'Persists submitted student fields');
     assert.equal(profile.field_of_study, applicationFields.field_of_study, 'Persists education information');
     storageKey = profile.document_storage_key;
     await fs.access(path.join(storageDir, storageKey));
+
+    const loginResponse = await fetch(`${baseUrl}/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: studentPassword }),
+    });
+    assert.equal(loginResponse.status, 200, 'Student applicant can sign in through the existing login flow');
+    const loggedInStudent = await loginResponse.json();
+    const loggedInHeaders = { Authorization: `Bearer ${loggedInStudent.data.token}` };
+    const ownApplicationsResponse = await fetch(`${baseUrl}/membership/applications/me`, { headers: loggedInHeaders });
+    assert.equal(ownApplicationsResponse.status, 200, 'Student account can view its own applications');
+    const ownApplications = await ownApplicationsResponse.json();
+    const ownApplication = ownApplications.data.applications.find((item) => String(item.id) === String(applicationId));
+    assert.equal(ownApplication.status, 'PENDING', 'Student account sees the application review status');
+    assert.equal(ownApplication.studentProfile.institution_name, applicationFields.institution_name, 'Student account sees its own application profile');
+    assert.equal(ownApplication.studentProfile.document_storage_key, undefined, 'Student profile response hides the private document storage key');
+    const ownApplicationDetailResponse = await fetch(`${baseUrl}/membership/applications/me/${applicationId}`, { headers: loggedInHeaders });
+    assert.equal(ownApplicationDetailResponse.status, 200, 'Student account can view its own application detail');
+    const ownApplicationDetail = await ownApplicationDetailResponse.json();
+    assert.equal(ownApplicationDetail.data.studentProfile.field_of_study, applicationFields.field_of_study, 'Student detail includes its education profile');
+
+    const otherEmail = `other-${Date.now()}@example.invalid`;
+    const otherRegistration = await fetch(`${baseUrl}/auth/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: otherEmail, password: `Temporary-${Date.now()}-Other!`, first_name: 'Other', last_name: 'Student' }),
+    });
+    assert.equal(otherRegistration.status, 201, 'Creates a separate account for cross-student access checks');
+    const otherAccount = await otherRegistration.json();
+    otherStudentUserId = otherAccount.data.user.id;
+    const otherHeaders = { Authorization: `Bearer ${otherAccount.data.token}` };
+    const crossStudentDetail = await fetch(`${baseUrl}/membership/applications/me/${applicationId}`, { headers: otherHeaders });
+    assert.equal(crossStudentDetail.status, 404, 'A student cannot view another student application');
+    const studentDocumentDownload = await fetch(`${baseUrl}/admin/applications/${applicationId}/student-document`, { headers: loggedInHeaders });
+    assert.equal(studentDocumentDownload.status, 403, 'A student account cannot download the protected enrollment document');
 
     const listingResponse = await fetch(`${baseUrl}/admin/applications?membership_type=STUDENT&search=${encodeURIComponent(email)}`, { headers: adminHeaders });
     assert.equal(listingResponse.status, 200, 'Makes Student applications visible in Admin Applications');
@@ -115,6 +180,7 @@ const run = async () => {
     const authorizedDownload = await fetch(`${baseUrl}/admin/applications/${applicationId}/student-document`, { headers: adminHeaders });
     assert.equal(authorizedDownload.status, 200, 'Allows an authorized administrator to download the document');
     assert.equal((await authorizedDownload.arrayBuffer()).byteLength > 0, true, 'Returns actual uploaded document bytes');
+    assert.ok(await AuditLog.findOne({ where: { user_id: adminUserId, action: 'STUDENT_DOCUMENT_ACCESS_GRANTED', entity_type: 'MembershipApplication', entity_id: String(applicationId) } }), 'Records authorized student document access without including file data');
 
     const reviewResponse = await fetch(`${baseUrl}/admin/applications/${applicationId}/review`, { method: 'PATCH', headers: adminHeaders });
     assert.equal(reviewResponse.status, 200, 'Preserves Student application in the existing review workflow');
@@ -124,6 +190,9 @@ const run = async () => {
     assert.equal(approved.membership_type, 'STUDENT', 'Membership type survives status transitions');
     assert.equal(approved.status, 'PAYMENT_PENDING', 'Approval does not activate the membership');
     assert.equal(await Membership.count({ where: { application_id: applicationId } }), 0, 'Approval does not automatically create or activate a membership');
+    const reviewedStatusResponse = await fetch(`${baseUrl}/membership/applications/me/${applicationId}`, { headers: loggedInHeaders });
+    assert.equal(reviewedStatusResponse.status, 200, 'Student can still read the application after administrative review');
+    assert.equal((await reviewedStatusResponse.json()).data.status, 'PAYMENT_PENDING', 'Student status reflects admin review without activating membership');
 
     for (const membershipType of ['INDIVIDUAL', 'CORPORATE']) {
       const legacyEmail = `${membershipType.toLowerCase()}-regression-${Date.now()}-${legacyUserIds.length}@example.invalid`;
@@ -165,7 +234,7 @@ const run = async () => {
     const protectedDownload = await fetch(`${baseUrl}/admin/applications/${applicationId}/student-document`);
     assert.equal(protectedDownload.status, 401, 'Requires authentication before document access');
 
-    console.log(`Registration integration checks passed: ${Object.values(industryCategories).flat().length} industry mappings, Student field/upload validation, persistence, duplicate prevention, Admin review and protected documents, plus Individual/Corporate regression flows.`);
+    console.log(`Registration integration checks passed: ${Object.values(industryCategories).flat().length} industry mappings, Student account lifecycle and ownership, field/upload validation, persistence, duplicate prevention, Admin review and protected documents, plus Individual/Corporate regression flows.`);
   } finally {
     if (applicationId) {
       await MembershipStatusHistory.destroy({ where: { application_id: applicationId } });
@@ -193,8 +262,23 @@ const run = async () => {
       await AuditLog.destroy({ where: { user_id: adminUserId } });
       await User.destroy({ where: { id: adminUserId } });
     }
-    if (storageKey) await fs.unlink(path.join(storageDir, storageKey)).catch(() => {});
+    const studentUserIds = [studentUserId, otherStudentUserId].filter(Boolean);
+    if (studentUserIds.length) {
+      await AuditLog.destroy({ where: { user_id: studentUserIds } });
+      await User.destroy({ where: { id: studentUserIds } });
+    }
+    if (storageKey) {
+      const testDocumentPath = path.join(storageDir, storageKey);
+      await fs.unlink(testDocumentPath).catch(() => {});
+      await assert.rejects(fs.access(testDocumentPath), (error) => error.code === 'ENOENT', 'Removes only the uploaded test document and verifies cleanup');
+    }
     await new Promise((resolve) => server.close(resolve));
+    if (applicationId) {
+      assert.equal(await MembershipApplication.count({ where: { id: applicationId } }), 0, 'Removes only the student application created by this suite');
+      assert.equal(await AuditLog.count({ where: { entity_type: 'MembershipApplication', entity_id: String(applicationId) } }), 0, 'Removes only this suite application audit records');
+    }
+    const remainingTestUsers = [studentUserId, otherStudentUserId, adminUserId].filter(Boolean);
+    if (remainingTestUsers.length) assert.equal(await User.count({ where: { id: remainingTestUsers } }), 0, 'Removes only users created by this suite');
     await sequelize.close();
   }
 };

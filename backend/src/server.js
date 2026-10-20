@@ -1,4 +1,12 @@
-require('dotenv').config();
+const dotenvConfig = require('dotenv').config();
+
+// In local development, an empty inherited shell value should not mask the
+// configured student fee from backend/.env. Production continues to use the
+// deployment environment exclusively.
+if (process.env.NODE_ENV !== 'production' && !process.env.STUDENT_MEMBERSHIP_FEE?.trim()) {
+  const configuredStudentFee = dotenvConfig.parsed?.STUDENT_MEMBERSHIP_FEE?.trim();
+  if (configuredStudentFee) process.env.STUDENT_MEMBERSHIP_FEE = configuredStudentFee;
+}
 
 const validateProductionEnvironment = () => {
   if (process.env.NODE_ENV !== 'production') return;

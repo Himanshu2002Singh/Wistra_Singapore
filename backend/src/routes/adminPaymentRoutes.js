@@ -11,6 +11,7 @@ const {
   rejectPayment,
   refundPayment,
   createComplimentaryPayment,
+  downloadPaymentProof,
 } = require('../controllers/paymentController');
 
 router.get(
@@ -32,6 +33,13 @@ router.patch(
   authenticateToken,
   requirePermission('payments.manage', 'payments.verify', 'financials.manage'),
   verifyPayment
+);
+
+router.get(
+  '/:id/submissions/:submissionId/proof',
+  authenticateToken,
+  requirePermission('payments.read', 'payments.manage', 'payments.view', 'financials.manage'),
+  downloadPaymentProof
 );
 
 router.patch(

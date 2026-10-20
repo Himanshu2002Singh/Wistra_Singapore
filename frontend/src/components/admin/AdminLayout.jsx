@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BarChart3, Bell, CalendarDays, ChevronDown, FileText, LayoutDashboard, LogOut, Menu, Newspaper, ShieldCheck, Users, WalletCards, X } from 'lucide-react'
+import { ArrowLeft, BarChart3, CalendarDays, ChevronDown, FileText, LayoutDashboard, LogOut, Menu, Newspaper, ShieldCheck, Users, WalletCards, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { hasModulePermission } from '@/config/adminAccess'
 
@@ -25,7 +25,6 @@ const pageNames = {
 export default function AdminLayout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [notificationOpen, setNotificationOpen] = useState(false)
   const { user, logout, isDemo } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -46,7 +45,6 @@ export default function AdminLayout({ children }) {
           <div className="admin-header-context"><span>Admin Portal</span><span className="admin-context-divider">/</span><strong>{pageNames[location.pathname] || 'Dashboard'}</strong></div>
         </div>
         <div className="admin-header-actions">
-          <div className="admin-notification-wrap"><button className="admin-notification" type="button" onClick={() => setNotificationOpen((isOpen) => !isOpen)} aria-expanded={notificationOpen} aria-label="Show sample notifications"><Bell size={18} aria-hidden="true" /><span aria-hidden="true" /></button>{notificationOpen && <div className="admin-notification-popover"><strong>Sample notifications</strong><p>15 applications are awaiting review.</p><p>Payment activity is available in the sample Payments area.</p></div>}</div>
           <div className="admin-role-status"><i /> {role.replaceAll('_', ' ')}</div>
           <div className="admin-user-menu">
             <button type="button" className="admin-user-trigger" onClick={() => setProfileOpen((isOpen) => !isOpen)} aria-expanded={profileOpen} aria-label="Open administrator menu">

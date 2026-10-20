@@ -13,10 +13,14 @@ const MembershipStatusHistory = require('./MembershipStatusHistory');
 const DirectoryPrivacySettings = require('./DirectoryPrivacySettings');
 const AuditLog = require('./AuditLog');
 const Payment = require('./Payment');
+const PaymentSubmission = require('./PaymentSubmission');
 const Invoice = require('./Invoice');
 const Event = require('./Event');
 const NewsArticle = require('./NewsArticle');
 const StudentProfile = require('./StudentProfile');
+const EventRegistration = require('./EventRegistration');
+const ContactMessage = require('./ContactMessage');
+const PasswordResetToken = require('./PasswordResetToken');
 
 // Initialize all models
 User.init(sequelize);
@@ -31,10 +35,14 @@ MembershipStatusHistory.init(sequelize);
 DirectoryPrivacySettings.init(sequelize);
 AuditLog.init(sequelize);
 Payment.init(sequelize);
+PaymentSubmission.init(sequelize);
 Invoice.init(sequelize);
 Event.init(sequelize);
 NewsArticle.init(sequelize);
 StudentProfile.init(sequelize);
+EventRegistration.init(sequelize);
+ContactMessage.init(sequelize);
+PasswordResetToken.init(sequelize);
 
 // Store models in an object for association setup
 const models = {
@@ -50,10 +58,14 @@ const models = {
   DirectoryPrivacySettings,
   AuditLog,
   Payment,
+  PaymentSubmission,
   Invoice,
   Event,
   NewsArticle,
   StudentProfile,
+  EventRegistration,
+  ContactMessage,
+  PasswordResetToken,
 };
 
 // Setup associations

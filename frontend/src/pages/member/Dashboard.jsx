@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import MemberLayout from '@/components/member/MemberLayout';
 import { getMyActivityApi, getMyMembershipApi } from '@/services/memberService';
+import { getPublishedEventsApi } from '@/services/publicContentService';
 import { getMyApplicationsApi } from '@/services/membershipService';
 import { getMyPaymentsApi } from '@/services/paymentService';
 import { useAuth } from '@/context/AuthContext';
@@ -26,6 +27,8 @@ export default function Dashboard() {
   const [membershipData, setMembershipData] = useState(null);
   const [applications, setApplications] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [eventsError, setEventsError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [activity, setActivity] = useState([]);
@@ -39,10 +42,13 @@ export default function Dashboard() {
     setLoadError(false);
     setMembershipData(null);
     setApplications([]);
+    setUpcomingEvents([]);
+    setEventsError(false);
     const results = await Promise.allSettled([
       getMyMembershipApi(),
       getMyApplicationsApi(),
       getMyPaymentsApi(),
+      getPublishedEventsApi(),
     ]);
     let loaded = false;
     let coreDataLoaded = true;
@@ -63,6 +69,15 @@ export default function Dashboard() {
     if (results[2].status === 'fulfilled' && results[2].value?.success) {
       setPayments(results[2].value.data || []);
       loaded = true;
+    }
+    if (results[3].status === 'fulfilled' && results[3].value?.success) {
+      const now = Date.now();
+      setUpcomingEvents((results[3].value.data?.events || [])
+        .filter((event) => new Date(event.starts_at).getTime() >= now)
+        .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))
+        .slice(0, 3));
+    } else {
+      setEventsError(true);
     }
     setLoadError(!loaded || !coreDataLoaded);
     setLoading(false);
@@ -308,8 +323,8 @@ export default function Dashboard() {
                   <Calendar size={13} className="text-[#5ee5e9]" />
                   <span>02. NEXT UPCOMING EVENT</span>
                 </div>
-                <p className="font-serif text-lg text-white font-medium">Not available</p>
-                <p className="text-xs text-slate-400">Member event information is not connected to the backend yet.</p>
+                <p className="font-serif text-lg text-white font-medium">{upcomingEvents[0]?.title || (eventsError ? 'Events unavailable' : 'No upcoming events')}</p>
+                <p className="text-xs text-slate-400">{upcomingEvents[0] ? formatDate(upcomingEvents[0].starts_at) : (eventsError ? 'Published event information could not be loaded.' : 'There are no published upcoming events.')}</p>
               </div>
 
               {/* Strip Item 3 */}
@@ -391,9 +406,11 @@ export default function Dashboard() {
               </Link>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-[#0c243b] p-6 text-sm text-slate-300">
-              No member event feed is available from the backend yet. Use the event calendar to view available events.
-            </div>
+            {eventsError && !upcomingEvents.length
+              ? <div className="rounded-xl border border-red-400/30 bg-red-400/10 p-6 text-sm text-red-200">Published event information is temporarily unavailable. <button type="button" onClick={fetchDashboard} className="ml-2 font-semibold underline">Retry</button></div>
+              : upcomingEvents.length
+                ? <div className="grid grid-cols-1 md:grid-cols-3 gap-4">{upcomingEvents.map((event) => <article key={event.id} className="rounded-xl border border-white/10 bg-[#0c243b] p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-[#5ee5e9]">{event.event_type}</p><h3 className="mt-2 font-[var(--serif)] text-xl text-white">{event.title}</h3><p className="mt-2 text-xs text-slate-400">{formatDate(event.starts_at)} · {event.location}</p><p className="mt-3 line-clamp-2 text-sm text-slate-300">{event.description}</p></article>)}</div>
+                : <div className="rounded-xl border border-white/10 bg-[#0c243b] p-6 text-sm text-slate-300">No published upcoming events are available. Check back for new announcements.</div>}
           </section>
 
 

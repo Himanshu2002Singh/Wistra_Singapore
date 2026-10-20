@@ -12,6 +12,9 @@ class Event extends Model {
       location: { type: DataTypes.STRING(255), allowNull: false },
       starts_at: { type: DataTypes.DATE, allowNull: false },
       ends_at: { type: DataTypes.DATE, allowNull: true },
+      is_free: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+      member_price: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
+      non_member_price: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
       status: { type: DataTypes.ENUM('DRAFT', 'PUBLISHED', 'CANCELLED'), allowNull: false, defaultValue: 'DRAFT' },
       created_by: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
     }, {
@@ -21,6 +24,7 @@ class Event extends Model {
 
   static associate(models) {
     this.belongsTo(models.User, { foreignKey: 'created_by', as: 'creator' });
+    this.hasMany(models.EventRegistration, { foreignKey: 'event_id', as: 'registrations' });
   }
 }
 

@@ -25,14 +25,18 @@ class Invoice extends Model {
           type: DataTypes.BIGINT.UNSIGNED,
           allowNull: true,
         },
+        event_registration_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: true, unique: true },
         user_id: {
           type: DataTypes.BIGINT.UNSIGNED,
           allowNull: false,
         },
         membership_type: {
           type: DataTypes.ENUM('INDIVIDUAL', 'CORPORATE', 'STUDENT'),
-          allowNull: false,
+          allowNull: true,
         },
+        description: { type: DataTypes.STRING(255), allowNull: true },
+        period_start: { type: DataTypes.DATEONLY, allowNull: true },
+        period_end: { type: DataTypes.DATEONLY, allowNull: true },
         subtotal: {
           type: DataTypes.DECIMAL(10, 2),
           allowNull: false,

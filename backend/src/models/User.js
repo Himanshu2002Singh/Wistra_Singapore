@@ -29,6 +29,11 @@ class User extends Model {
           type: DataTypes.STRING(255),
           allowNull: false,
         },
+        token_version: {
+          type: DataTypes.INTEGER.UNSIGNED,
+          allowNull: false,
+          defaultValue: 0,
+        },
         phone: {
           type: DataTypes.STRING(20),
           allowNull: true,
@@ -100,6 +105,16 @@ class User extends Model {
     User.hasMany(models.Membership, {
       foreignKey: 'user_id',
       as: 'memberships',
+    });
+
+    User.hasMany(models.EventRegistration, {
+      foreignKey: 'user_id',
+      as: 'eventRegistrations',
+    });
+
+    User.hasMany(models.PasswordResetToken, {
+      foreignKey: 'user_id',
+      as: 'passwordResetTokens',
     });
 
     User.hasOne(models.DirectoryPrivacySettings, {

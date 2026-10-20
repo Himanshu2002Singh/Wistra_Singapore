@@ -23,8 +23,8 @@ function AccessMessage({ title, children, action }) {
   )
 }
 
-export default function ProtectedRoute({ allowedRoles, requiredPermissions = [], allowSuperAdmin = true, unauthenticatedPath = '/login', children }) {
-  const { user, isAuthenticated, isLoading, authError, checkAuth } = useAuth()
+export default function ProtectedRoute({ allowedRoles, requiredPermissions = [], allowSuperAdmin = true, requireBackendAuth = false, unauthenticatedPath = '/login', children }) {
+  const { user, isAuthenticated, isLoading, authError, checkAuth, isDemo, logout } = useAuth()
   const location = useLocation()
 
   if (isLoading) return <AuthLoading />
@@ -39,6 +39,14 @@ export default function ProtectedRoute({ allowedRoles, requiredPermissions = [],
 
   if (!isAuthenticated) {
     return <Navigate to={unauthenticatedPath} state={{ from: location }} replace />
+  }
+
+  if (requireBackendAuth && isDemo) {
+    return (
+      <AccessMessage title="Live admin data needs a backend account." action={<button type="button" onClick={logout} style={{ padding: '10px 14px', border: 0, background: '#0f2d52', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Sign out of demo</button>}>
+        This Super Admin demo is frontend-only and has no API token, so it cannot load live applications or other admin records. Sign out and use a Super Admin account authenticated by the local backend.
+      </AccessMessage>
+    )
   }
 
   const roleName = user?.role?.name || user?.role || null

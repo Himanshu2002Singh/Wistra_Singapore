@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertCircle, ArrowLeft, ArrowUpRight, CheckCircle2 } from 'lucide-react'
+import { AlertCircle, ArrowLeft, ArrowUpRight, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
 import { submitStudentApplicationApi } from '@/services/membershipService'
+import { useAuth } from '@/context/AuthContext'
 import studentHero from '../assets/images/wista/membership/membership-reception.jpg'
 
 const currentYear = new Date().getFullYear()
@@ -11,10 +12,13 @@ const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 
 const getErrorMessage = (error) => {
   const response = error.response
+  if (response?.status === 401) return response.data?.message || 'Sign in with this email address to continue.'
+  if (response?.status === 403) return response.data?.message || 'This account cannot submit the student application.'
   if (response?.status === 409) return response.data?.message || 'An application already exists for this email address.'
   if (response?.status === 413) return 'The supporting document must be 5 MB or smaller.'
   if (response?.status === 400 && response.data?.errors) return Object.values(response.data.errors).join(' ')
   if (response?.status >= 500) return 'The application service is temporarily unavailable. Please try again later.'
+  if (!response && error.message && error.message !== 'Network Error' && !error.message.startsWith('Request failed with status code')) return error.message
   if (!response) return 'Could not reach the application service. Check your connection and try again.'
   return response.data?.message || 'The application could not be submitted. Check your details and try again.'
 }
@@ -23,10 +27,15 @@ const fieldClass = 'w-full px-4 py-3 bg-[#071626] border border-slate-400/40 tex
 const labelClass = 'text-slate-100 text-xs tracking-wider uppercase font-semibold mb-2 block'
 const sectionHeadingClass = 'text-xs font-bold tracking-widest uppercase text-[#5ee5e9] border-b border-white/15 pb-2.5'
 
-function Field({ label, name, type = 'text', value, onChange, required = true, ...props }) {
+function Field({ label, name, type = 'text', value, onChange, required = true, showPassword, onTogglePassword, ...props }) {
   return <div className="form-group">
     <label className={labelClass} htmlFor={name}>{label}{required && <span className="font-bold text-[#e85d4a]"> *</span>}</label>
-    <input className={fieldClass} id={name} name={name} type={type} value={value} onChange={onChange} required={required} {...props} />
+    {onTogglePassword ? <div className="relative">
+      <input className={`${fieldClass} pr-12`} id={name} name={name} type={showPassword ? 'text' : 'password'} value={value} onChange={onChange} required={required} {...props} />
+      <button type="button" onClick={onTogglePassword} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-[#5ee5e9]" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}>
+        {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+      </button>
+    </div> : <input className={fieldClass} id={name} name={name} type={type} value={value} onChange={onChange} required={required} {...props} />}
   </div>
 }
 
@@ -34,13 +43,21 @@ export default function RegisterStudent() {
   const [formData, setFormData] = useState({
     first_name: '', last_name: '', email: '', mobile_number: '', invoicing_address: '', nationality: '', date_of_birth: '',
     institution_name: '', degree_type: '', field_of_study: '', enrollment_type: '', graduation_month: '', graduation_year: '',
+    password: '', password_confirm: '',
   })
   const [document, setDocument] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
   const [submitted, setSubmitted] = useState(null)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
   const submitLock = useRef(false)
+  const { isAuthenticated, isDemo, register, login, logout, user } = useAuth()
+  const roleName = user?.role?.name || user?.role_name || user?.role
+  const hasMemberSession = isAuthenticated && !isDemo && roleName === 'MEMBER'
+  const needsMemberAccount = !isAuthenticated
+  const hasWrongRoleSession = isAuthenticated && !hasMemberSession
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -59,19 +76,39 @@ export default function RegisterStudent() {
     }
     if (document && document.size > 5 * 1024 * 1024) errors.proof_of_enrollment = 'The supporting document must be 5 MB or smaller.'
     if (document && !['application/pdf', 'image/jpeg', 'image/png'].includes(document.type)) errors.proof_of_enrollment = 'Upload a PDF, JPEG, or PNG document.'
+    if (needsMemberAccount && formData.password.length < 8) errors.password = 'Use a password with at least 8 characters.'
+    if (needsMemberAccount && formData.password !== formData.password_confirm) errors.password_confirm = 'The passwords do not match.'
     setFieldErrors(errors)
     return Object.keys(errors).length === 0
   }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (hasWrongRoleSession) {
+      setError('Sign out of the administrator account before creating a student Member account.')
+      return
+    }
     if (submitLock.current || !validate()) return
     submitLock.current = true
     setLoading(true)
     setError('')
     try {
+      if (needsMemberAccount) {
+        let applicantUser
+        try {
+          const registration = await register({ email: formData.email, password: formData.password, first_name: formData.first_name, last_name: formData.last_name, phone: formData.mobile_number })
+          applicantUser = registration?.data?.user
+        } catch (registrationError) {
+          if (registrationError.response?.status === 409) applicantUser = await login(formData.email, formData.password)
+          else throw registrationError
+        }
+        const applicantRole = applicantUser?.role?.name || applicantUser?.role_name || applicantUser?.role
+        if (applicantRole !== 'MEMBER') {
+          throw new Error('Student applications require a Member account. Use a different email for a new Member account, or enter the password for an existing Member account.')
+        }
+      }
       const payload = new FormData()
-      Object.entries(formData).forEach(([key, value]) => payload.append(key, value))
+      Object.entries(formData).filter(([key]) => !['password', 'password_confirm'].includes(key)).forEach(([key, value]) => payload.append(key, value))
       if (document) payload.append('proof_of_enrollment', document)
       const response = await submitStudentApplicationApi(payload)
       if (!response?.success || !response.data?.application_number) throw new Error(response?.message || 'Application submission failed.')
@@ -108,18 +145,21 @@ export default function RegisterStudent() {
           <p className="mx-auto mb-5 max-w-lg text-sm leading-relaxed text-slate-200">Thank you, <strong className="text-white">{formData.first_name} {formData.last_name}</strong>. Your Student Membership application has been received for review.</p>
           <p className="mb-7 inline-block rounded border border-[#5ee5e9]/40 bg-[#5ee5e9]/10 px-4 py-2 font-mono text-xs font-bold text-[#5ee5e9]">Application #: {submitted.application_number}</p>
           <p className="text-xs leading-relaxed text-slate-300">The WISTA Singapore Executive Committee will review your application.</p>
-          <Link to="/membership" className="mt-8 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#5ee5e9] hover:text-white">Explore membership <ArrowUpRight size={14} /></Link>
+          <p className="mt-4 text-xs leading-relaxed text-slate-300">Your account is ready. You can check your application status in the member portal.</p>
+          <Link to="/member" className="mt-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#5ee5e9] hover:text-white">Go to Dashboard <ArrowUpRight size={14} /></Link>
         </div> : <form onSubmit={handleSubmit} className="public-application-form bg-[#0c243b] border border-white/15 p-8 md:p-12 rounded-xl shadow-2xl space-y-10">
           <div className="border-b border-white/15 pb-5">
             <h3 className="font-[var(--serif)] text-3xl text-white font-normal mb-2 tracking-tight">Student Membership Application Form</h3>
             <p className="text-xs text-slate-300 font-medium">Fields marked with <span className="text-[#e85d4a] font-bold">*</span> are required.</p>
           </div>
 
+          {hasMemberSession && <p className="text-xs leading-relaxed text-slate-300">This application will be linked to your signed-in account: <strong className="text-white">{user?.email}</strong>.</p>}
+          {hasWrongRoleSession && <div className="flex flex-col gap-3 rounded border border-amber-400/40 bg-amber-400/10 p-4 text-xs leading-relaxed text-amber-100 sm:flex-row sm:items-center sm:justify-between" role="status"><span>You are signed in as {roleName === 'SUPER_ADMIN' ? 'an administrator' : 'a non-member account'}. Student applications require a Member account.</span><button type="button" onClick={logout} className="shrink-0 font-bold underline underline-offset-2">Sign out to continue</button></div>}
           {error && <div className="p-4 bg-red-500/20 border border-red-500/50 rounded text-red-200 text-xs font-semibold flex items-center gap-2" role="alert"><AlertCircle size={16} className="text-red-400 shrink-0" /><span>{error}</span></div>}
 
           <div className="space-y-6">
             <h4 className={sectionHeadingClass}>01. Personal Information</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="student-personal-grid grid grid-cols-1 md:grid-cols-2 gap-6">
               <Field label="First name" name="first_name" autoComplete="given-name" value={formData.first_name} onChange={handleChange} />
               <Field label="Last name" name="last_name" autoComplete="family-name" value={formData.last_name} onChange={handleChange} />
               <Field label="Email address — for invoicing and communications" name="email" type="email" autoComplete="email" maxLength={255} value={formData.email} onChange={handleChange} />
@@ -129,6 +169,15 @@ export default function RegisterStudent() {
               <Field label="Date of birth" name="date_of_birth" type="date" autoComplete="bday" max={new Date().toISOString().slice(0, 10)} value={formData.date_of_birth} onChange={handleChange} />
             </div>
           </div>
+
+          {needsMemberAccount && <div className="space-y-6">
+            <h4 className={sectionHeadingClass}>Account Access</h4>
+            <p className="text-xs leading-relaxed text-slate-300">Create an account to submit your application and check its review status later. If you already have an account, enter its password to sign in.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div><Field label="Create or enter password" name="password" type="password" autoComplete="new-password" minLength={8} value={formData.password} onChange={handleChange} showPassword={showPassword} onTogglePassword={() => setShowPassword((visible) => !visible)} aria-invalid={Boolean(fieldErrors.password)} />{fieldErrors.password && <p className="mt-1 text-xs text-red-300">{fieldErrors.password}</p>}</div>
+              <div><Field label="Confirm password" name="password_confirm" type="password" autoComplete="new-password" minLength={8} value={formData.password_confirm} onChange={handleChange} showPassword={showPasswordConfirm} onTogglePassword={() => setShowPasswordConfirm((visible) => !visible)} aria-invalid={Boolean(fieldErrors.password_confirm)} />{fieldErrors.password_confirm && <p className="mt-1 text-xs text-red-300">{fieldErrors.password_confirm}</p>}</div>
+            </div>
+          </div>}
 
           <div className="space-y-6">
             <h4 className={sectionHeadingClass}>02. Education Information</h4>
@@ -152,8 +201,8 @@ export default function RegisterStudent() {
             {fieldErrors.proof_of_enrollment && <p className="text-xs text-red-300" role="alert">{fieldErrors.proof_of_enrollment}</p>}
           </div>
 
-          <button type="submit" disabled={loading} className="w-full py-4 bg-[var(--coral)] hover:bg-[#f27663] text-white font-bold tracking-widest uppercase text-xs rounded transition flex items-center justify-center gap-2 shadow-lg cursor-pointer disabled:cursor-wait disabled:opacity-60">
-            {loading ? 'Submitting application…' : 'Submit Student Application'} {!loading && <ArrowUpRight size={16} />}
+          <button type="submit" disabled={loading || hasWrongRoleSession} className="w-full py-4 bg-[var(--coral)] hover:bg-[#f27663] text-white font-bold tracking-widest uppercase text-xs rounded transition flex items-center justify-center gap-2 shadow-lg cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
+            {loading ? (hasMemberSession ? 'Submitting application…' : 'Creating account and submitting…') : (hasMemberSession ? 'Submit Student Application' : 'Create account and submit application')} {!loading && <ArrowUpRight size={16} />}
           </button>
         </form>}
       </div>

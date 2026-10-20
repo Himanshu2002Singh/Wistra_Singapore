@@ -8,6 +8,7 @@ require('dotenv').config();
 
 const sequelize = require('./config/database');
 const authRoutes = require('./routes/authRoutes');
+const contactRoutes = require('./routes/contactRoutes');
 const membershipRoutes = require('./routes/membershipRoutes');
 const adminApplicationRoutes = require('./routes/adminApplicationRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
@@ -65,6 +66,7 @@ app.get('/api/health', async (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/contact', contactRoutes);
 app.use('/api/membership', membershipRoutes);
 app.use('/api/admin/applications', adminApplicationRoutes);
 app.use('/api/payments', paymentRoutes);

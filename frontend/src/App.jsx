@@ -12,6 +12,7 @@ const About = lazy(() => import('@/pages/About'))
 const Membership = lazy(() => import('@/pages/Membership'))
 const Events = lazy(() => import('@/pages/Events'))
 const News = lazy(() => import('@/pages/News'))
+const NewsArticle = lazy(() => import('@/pages/NewsArticle'))
 const Committees = lazy(() => import('@/pages/Committees'))
 const OurPresidents = lazy(() => import('@/pages/OurPresidents'))
 const Network = lazy(() => import('@/pages/Network'))
@@ -19,6 +20,7 @@ const Contact = lazy(() => import('@/pages/Contact'))
 
 // Auth & Registration Flow
 const Login = lazy(() => import('@/pages/Login'))
+const PasswordReset = lazy(() => import('@/pages/PasswordReset'))
 const AdminGateway = lazy(() => import('@/pages/AdminGateway'))
 const Register = lazy(() => import('@/pages/Register'))
 const RegisterIndividual = lazy(() => import('@/pages/RegisterIndividual'))
@@ -76,6 +78,7 @@ export default function App() {
           <Route path="/membership" element={<Membership />} />
           <Route path="/events" element={<Events />} />
           <Route path="/news" element={<News />} />
+          <Route path="/news/:id" element={<NewsArticle />} />
           <Route path="/committees" element={<Committees />} />
           <Route path="/our-presidents" element={<OurPresidents />} />
           <Route path="/gallery" element={<Navigate to="/" replace />} />
@@ -84,6 +87,8 @@ export default function App() {
 
           {/* Auth & Registration */}
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<PasswordReset />} />
+          <Route path="/reset-password" element={<PasswordReset />} />
           <Route path="/register" element={<Register />} />
           <Route path="/register/individual" element={<RegisterIndividual />} />
           <Route path="/register/corporate" element={<RegisterCorporate />} />
@@ -101,16 +106,16 @@ export default function App() {
           </Route>
 
           <Route path="/admin" element={<AdminGateway />} />
-          <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={ADMIN_GATE_PERMISSIONS} unauthenticatedPath="/admin"><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/admin/applications" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['applications.view', 'applications.read', 'applications.manage']} unauthenticatedPath="/admin"><AdminApplications /></ProtectedRoute>} />
-          <Route path="/admin/members" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['members.view', 'members.read', 'members.manage']} unauthenticatedPath="/admin"><AdminMembers /></ProtectedRoute>} />
-          <Route path="/admin/events" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['events.view', 'events.read', 'events.manage']} unauthenticatedPath="/admin"><AdminEvents /></ProtectedRoute>} />
-          <Route path="/admin/payments" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['payments.view', 'payments.read', 'payments.manage']} unauthenticatedPath="/admin"><AdminPayments /></ProtectedRoute>} />
-          <Route path="/admin/news" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['news.view', 'news.read', 'news.manage']} unauthenticatedPath="/admin"><AdminCommunications /></ProtectedRoute>} />
-          <Route path="/admin/communications" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['news.view', 'news.read', 'news.manage']} unauthenticatedPath="/admin"><AdminCommunications /></ProtectedRoute>} />
-          <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['reports.view', 'reports.read']} unauthenticatedPath="/admin"><AdminReports /></ProtectedRoute>} />
-          <Route path="/admin/users" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['users.view', 'users.read', 'users.manage']} unauthenticatedPath="/admin"><AdminUsers /></ProtectedRoute>} />
-          <Route path="/admin/audit-logs" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['audit_logs.view', 'audit_logs.read']} unauthenticatedPath="/admin"><AdminAuditLogs /></ProtectedRoute>} />
+          <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={ADMIN_GATE_PERMISSIONS} requireBackendAuth unauthenticatedPath="/admin"><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/applications" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['applications.view', 'applications.read', 'applications.manage']} requireBackendAuth unauthenticatedPath="/admin"><AdminApplications /></ProtectedRoute>} />
+          <Route path="/admin/members" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['members.view', 'members.read', 'members.manage']} requireBackendAuth unauthenticatedPath="/admin"><AdminMembers /></ProtectedRoute>} />
+          <Route path="/admin/events" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['events.view', 'events.read', 'events.manage']} requireBackendAuth unauthenticatedPath="/admin"><AdminEvents /></ProtectedRoute>} />
+          <Route path="/admin/payments" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['payments.view', 'payments.read', 'payments.manage']} requireBackendAuth unauthenticatedPath="/admin"><AdminPayments /></ProtectedRoute>} />
+          <Route path="/admin/news" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['news.view', 'news.read', 'news.manage']} requireBackendAuth unauthenticatedPath="/admin"><AdminCommunications /></ProtectedRoute>} />
+          <Route path="/admin/communications" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['news.view', 'news.read', 'news.manage']} requireBackendAuth unauthenticatedPath="/admin"><AdminCommunications /></ProtectedRoute>} />
+          <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['reports.view', 'reports.read']} requireBackendAuth unauthenticatedPath="/admin"><AdminReports /></ProtectedRoute>} />
+          <Route path="/admin/users" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['users.view', 'users.read', 'users.manage']} requireBackendAuth unauthenticatedPath="/admin"><AdminUsers /></ProtectedRoute>} />
+          <Route path="/admin/audit-logs" element={<ProtectedRoute allowedRoles={ADMIN_ROLES} requiredPermissions={['audit_logs.view', 'audit_logs.read']} requireBackendAuth unauthenticatedPath="/admin"><AdminAuditLogs /></ProtectedRoute>} />
         </Routes>
       </Suspense>
     </AuthProvider>

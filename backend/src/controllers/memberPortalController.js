@@ -249,12 +249,11 @@ const updateMyProfile = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Member account was not found.' });
     }
 
-    const oldValues = {};
-    const newValues = {};
+    const changedFields = [];
+    const changedPrivacy = {};
     for (const [field, value] of Object.entries(updates)) {
       if (user[field] !== value) {
-        oldValues[field] = user[field];
-        newValues[field] = value;
+        changedFields.push(field);
       }
     }
 
@@ -270,23 +269,23 @@ const updateMyProfile = async (req, res, next) => {
       for (const field of privacyFields) {
         if (!Object.prototype.hasOwnProperty.call(privacy, field)) continue;
         if (privacySettings[field] !== privacy[field]) {
-          oldValues[field] = privacySettings[field];
-          newValues[field] = privacy[field];
+          changedFields.push(field);
+          changedPrivacy[field] = privacy[field];
         }
         privacySettings[field] = privacy[field];
       }
       await privacySettings.save({ transaction });
     }
 
-    if (Object.keys(newValues).length) {
+    if (changedFields.length) {
       await AuditLog.create({
         user_id: req.user.id,
         action: 'PROFILE_UPDATED',
         module: 'MEMBER_PROFILE',
         entity_type: 'User',
         entity_id: String(user.id),
-        old_values: oldValues,
-        new_values: newValues,
+        old_values: { changed_fields: changedFields },
+        new_values: { changed_fields: changedFields, privacy: changedPrivacy },
         ip_address: req.ip,
         user_agent: req.get('User-Agent'),
       }, { transaction });

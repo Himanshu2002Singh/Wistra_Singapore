@@ -1,15 +1,27 @@
 'use strict';
 
 require('dotenv').config();
+const assert = require('node:assert/strict');
 const http = require('http');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const paymentProofDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'wista-payment-suite-'));
+process.env.PAYMENT_DOCUMENT_STORAGE_PATH = paymentProofDirectory;
+process.env.BANK_ACCOUNT_NAME = 'WISTA Payment Test';
+process.env.BANK_NAME = 'Test Bank';
+process.env.BANK_ACCOUNT_NUMBER = '00000000';
 const app = require('../app');
 const sequelize = require('../config/database');
-const { User, Role } = require('../models');
+const { User, Role, MembershipApplication, MembershipStatusHistory, AuditLog, IndividualProfile, CorporateProfile, CorporateRepresentative, Payment, Invoice, Membership } = require('../models');
+const industryCategories = require('../../../shared/industry-classification.json');
 const { hashPassword } = require('./password');
 const { generateToken } = require('./jwt');
 
 let server;
 let PORT = 5097;
+const suiteUserIds = [];
+const suiteApplicationIds = [];
 
 const request = (path, method = 'GET', body = null, token = null) => {
   return new Promise((resolve, reject) => {
@@ -60,7 +72,7 @@ const createUserWithRole = async (email, roleName) => {
   if (!role) throw new Error(`Role ${roleName} not found`);
 
   const password_hash = await hashPassword('Password123!');
-  const [user] = await User.findOrCreate({
+  const [user, created] = await User.findOrCreate({
     where: { email },
     defaults: {
       first_name: 'AppTest',
@@ -70,6 +82,7 @@ const createUserWithRole = async (email, roleName) => {
       status: 'ACTIVE',
     },
   });
+  if (created) suiteUserIds.push(user.id);
 
   user.role_id = role.id;
   user.status = 'ACTIVE';
@@ -90,6 +103,7 @@ const registerMember = async (email, first_name, last_name) => {
   if (response.status !== 201 || !response.body.data?.token || response.body.data.user?.role?.name !== 'MEMBER') {
     throw new Error('Member registration did not create a member account and session.');
   }
+  suiteUserIds.push(response.body.data.user.id);
   return { user: response.body.data.user, token: response.body.data.token };
 };
 
@@ -100,9 +114,12 @@ const runTests = async () => {
   server = app.listen(PORT);
 
   try {
+    const [[industry_main_category, industrySubCategories]] = Object.entries(industryCategories);
+    const industry_sub_category = industrySubCategories[0];
     const applicantUser1 = await registerMember(`applicant1.${Date.now()}@example.com`, 'Individual', 'AppTest');
     const applicantUser2 = await registerMember(`applicant2.${Date.now()}@example.com`, 'Corporate', 'AppTest');
     const membershipAdmin = await createUserWithRole(`admin.mem.${Date.now()}@example.com`, 'MEMBERSHIP_ADMIN');
+    const financeAdmin = await createUserWithRole(`admin.finance.${Date.now()}@example.com`, 'SUPER_ADMIN');
 
     // 1. Submit Individual Application
     console.log('\n[1] Testing Individual Application Submission...');
@@ -121,6 +138,7 @@ const runTests = async () => {
       throw new Error('Individual application submission failed');
     }
     const indAppId = indRes.body.data.id;
+    suiteApplicationIds.push(indAppId);
     const indAppNum = indRes.body.data.application_number;
     if (!indAppNum.startsWith('WISTA-APP-')) {
       throw new Error('Application number format invalid!');
@@ -161,6 +179,8 @@ const runTests = async () => {
       invoicing_email: 'finance@pil.com.sg',
       main_contacts: 'Test primary corporate contact',
       additional_contacts: 'Test additional corporate contact',
+      industry_main_category,
+      industry_sub_category,
       representatives: [
         { name: 'Rep 1', email: 'rep1@pil.com.sg', designation: 'VP Shipping', is_primary: true },
         { name: 'Rep 2', email: 'rep2@pil.com.sg', designation: 'Fleet Manager', is_primary: false },
@@ -172,6 +192,7 @@ const runTests = async () => {
       throw new Error('Corporate application submission failed');
     }
     const corpAppId = corpRes.body.data.id;
+    suiteApplicationIds.push(corpAppId);
 
     // 5. Admin List Applications
     console.log('\n[5] Testing Admin Applications List (RBAC)...');
@@ -223,6 +244,31 @@ const runTests = async () => {
     if (appRes.status !== 200 || appRes.body.data.status !== 'PAYMENT_PENDING') {
       throw new Error('Approval should transition status to PAYMENT_PENDING');
     }
+    const approvedPayment = await Payment.findOne({ where: { application_id: indAppId } });
+    const approvedInvoice = approvedPayment && await Invoice.findOne({ where: { payment_id: approvedPayment.id } });
+    assert.ok(approvedPayment && approvedInvoice, 'Individual approval creates a payment record and invoice');
+    assert.equal(Number(approvedInvoice.total), 150, 'Individual invoice uses the configured SGD 150 fee');
+    assert.equal(approvedInvoice.membership_type, 'INDIVIDUAL', 'Invoice is linked to the correct membership type');
+    assert.equal(await Membership.count({ where: { application_id: indAppId, status: 'ACTIVE' } }), 0, 'Approval does not activate membership before payment verification');
+    const approvalRetry = await request(`/api/admin/applications/${indAppId}/approve`, 'PATCH', { review_remarks: 'Retry approval request' }, membershipAdmin.token);
+    assert.equal(approvalRetry.status, 200, 'Approval retry is idempotent');
+    assert.equal(await Payment.count({ where: { application_id: indAppId } }), 1, 'Approval retry does not create duplicate payment');
+    assert.equal(await Invoice.count({ where: { application_id: indAppId } }), 1, 'Approval retry does not create duplicate invoice');
+
+    const submitForm = new FormData();
+    submitForm.append('payment_method', 'BANK_TRANSFER');
+    submitForm.append('transaction_reference', 'TEST-TRANSFER-001');
+    submitForm.append('transfer_date', new Date().toISOString().slice(0, 10));
+    submitForm.append('amount', '150.00');
+    submitForm.append('proof', new Blob([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1])], { type: 'image/png' }), 'receipt.png');
+    const submitResponse = await fetch(`http://127.0.0.1:${PORT}/api/payments/${approvedPayment.id}/submit`, { method: 'POST', headers: { Authorization: `Bearer ${applicantUser1.token}` }, body: submitForm });
+    assert.equal(submitResponse.status, 200, 'Applicant can submit a transfer receipt for Finance review');
+    const verification = await request(`/api/admin/payments/${approvedPayment.id}/verify`, 'PATCH', {}, financeAdmin.token);
+    assert.equal(verification.status, 200, 'Finance can verify the submitted membership payment');
+    assert.equal(await Membership.count({ where: { application_id: indAppId, status: 'ACTIVE' } }), 1, 'Verified payment activates exactly one membership');
+    const verificationRetry = await request(`/api/admin/payments/${approvedPayment.id}/verify`, 'PATCH', {}, financeAdmin.token);
+    assert.equal(verificationRetry.status, 200, 'Verification retry is idempotent');
+    assert.equal(await Membership.count({ where: { application_id: indAppId, status: 'ACTIVE' } }), 1, 'Verification retry does not duplicate membership activation');
 
     // 10. Admin Reject Application
     console.log('\n[10] Testing Admin Reject Corporate Application...');
@@ -259,15 +305,39 @@ const runTests = async () => {
 
     console.log('\n✅ ALL MEMBERSHIP APPLICATION TESTS PASSED SUCCESSFULLY!');
   } finally {
-    if (server) {
-      server.close();
+    if (suiteApplicationIds.length) {
+      const testPayments = await Payment.findAll({ where: { application_id: suiteApplicationIds }, attributes: ['id'] });
+      const testPaymentIds = testPayments.map(({ id }) => id);
+      if (testPaymentIds.length) await Invoice.destroy({ where: { payment_id: testPaymentIds } });
+      if (testPaymentIds.length) await Payment.destroy({ where: { id: testPaymentIds } });
+      await Membership.destroy({ where: { application_id: suiteApplicationIds } });
+      await MembershipStatusHistory.destroy({ where: { application_id: suiteApplicationIds } });
+      await AuditLog.destroy({ where: { entity_type: 'MembershipApplication', entity_id: suiteApplicationIds.map(String) } });
+      await MembershipApplication.destroy({ where: { id: suiteApplicationIds } });
     }
+    if (suiteUserIds.length) {
+      const corporateProfiles = await CorporateProfile.findAll({ where: { user_id: suiteUserIds }, attributes: ['id'] });
+      const corporateProfileIds = corporateProfiles.map(({ id }) => id);
+      if (corporateProfileIds.length) await CorporateRepresentative.destroy({ where: { corporate_profile_id: corporateProfileIds } });
+      await IndividualProfile.destroy({ where: { user_id: suiteUserIds } });
+      await CorporateProfile.destroy({ where: { user_id: suiteUserIds } });
+      await AuditLog.destroy({ where: { user_id: suiteUserIds } });
+      await User.destroy({ where: { id: suiteUserIds } });
+    }
+    if (suiteApplicationIds.length) assert.equal(await MembershipApplication.count({ where: { id: suiteApplicationIds } }), 0, 'Cleans up only applications created by this suite');
+    if (suiteUserIds.length) assert.equal(await User.count({ where: { id: suiteUserIds } }), 0, 'Cleans up only users created by this suite');
+    if (server) {
+      await new Promise((resolve) => server.close(resolve));
+    }
+    fs.rmSync(paymentProofDirectory, { recursive: true, force: true });
+    await sequelize.close();
   }
 };
 
 runTests()
   .then(() => process.exit(0))
   .catch((err) => {
+    fs.rmSync(paymentProofDirectory, { recursive: true, force: true });
     console.error('\n❌ MEMBERSHIP APPLICATION SUITE FAILED:', err);
     process.exit(1);
   });

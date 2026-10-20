@@ -5,7 +5,7 @@ const http = require('http');
 const crypto = require('crypto');
 const app = require('../app');
 const sequelize = require('../config/database');
-const { User, Role, Membership } = require('../models');
+const { User, Role, Membership, AuditLog } = require('../models');
 const { comparePassword } = require('./password');
 const jwt = require('jsonwebtoken');
 
@@ -275,6 +275,11 @@ const runTests = async () => {
       || persistedProfile.body.data?.privacySettings?.show_company !== false) {
       throw new Error('Member profile or privacy changes did not persist');
     }
+    const profileAudit = await AuditLog.findOne({ where: { user_id: dbUser.id, action: 'PROFILE_UPDATED', entity_type: 'User', entity_id: String(dbUser.id) } });
+    if (!profileAudit || !profileAudit.new_values?.changed_fields?.includes('phone')
+      || JSON.stringify(profileAudit).includes('+65 81234567')) {
+      throw new Error('Profile audit must record changed fields without copying private contact values.');
+    }
     const injectedUpdate = await request('/api/membership/profile', 'PATCH', {
       user_id: otherUserId,
       first_name: 'Hijacked',
@@ -349,7 +354,13 @@ const runTests = async () => {
     });
     const cleanupUserIds = cleanupUsers.map((user) => user.id);
     if (cleanupUserIds.length) await Membership.destroy({ where: { user_id: cleanupUserIds } });
+    if (cleanupUserIds.length) await AuditLog.destroy({ where: { user_id: cleanupUserIds } });
     await User.destroy({ where: { email: [testEmail, escalateEmail, otherEmail] } });
+    if (cleanupUserIds.length) {
+      if (await User.count({ where: { id: cleanupUserIds } })) throw new Error('Authentication test users were not fully cleaned up.');
+      if (await Membership.count({ where: { user_id: cleanupUserIds } })) throw new Error('Authentication test memberships were not fully cleaned up.');
+      if (await AuditLog.count({ where: { user_id: cleanupUserIds } })) throw new Error('Authentication test audit rows were not fully cleaned up.');
+    }
   }
 };
 

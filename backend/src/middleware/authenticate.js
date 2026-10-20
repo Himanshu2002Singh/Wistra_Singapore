@@ -70,6 +70,12 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
+    const currentTokenVersion = Number(user.token_version || 0);
+    const presentedTokenVersion = decoded.token_version === undefined ? 0 : Number(decoded.token_version);
+    if (!Number.isSafeInteger(presentedTokenVersion) || presentedTokenVersion !== currentTokenVersion) {
+      return res.status(401).json({ success: false, message: 'Authentication token is no longer valid.' });
+    }
+
     if (user.status !== 'ACTIVE') {
       return res.status(403).json({
         success: false,
@@ -79,6 +85,7 @@ const authenticateToken = async (req, res, next) => {
 
     // Format user object with permissions array
     const userObj = user.toJSON();
+    delete userObj.token_version;
     const permissionNames = user.role?.permissions?.map((p) => p.name) || [];
     userObj.permissions = permissionNames;
 

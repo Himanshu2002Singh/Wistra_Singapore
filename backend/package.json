@@ -6,7 +6,13 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test:student-registration": "node src/utils/test-student-registration.js"
+    "test:student-registration": "node src/utils/test-student-registration.js",
+    "test:event-workflow": "node src/utils/test-event-workflow.js",
+    "test:membership-suite": "node src/utils/test-membership-suite.js",
+    "test:member-directory": "node src/utils/test-member-directory.js",
+    "test:contact-password-reset": "node src/utils/test-contact-password-reset.js",
+    "test:news-content": "node src/utils/test-news-content.js",
+    "test:payment-workflow-unit": "node src/utils/test-payment-workflow-unit.js"
   },
   "keywords": [],
   "author": "",

@@ -18,7 +18,7 @@ function GatewayStatus({ title, children, action }) {
 }
 
 export default function AdminGateway() {
-  const { user, isAuthenticated, isLoading, authError, checkAuth, login, loginDemo, logout } = useAuth()
+  const { user, isAuthenticated, isLoading, authError, checkAuth, login, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [roles, setRoles] = useState([])
@@ -41,12 +41,12 @@ export default function AdminGateway() {
           adminRoles.push({ name: 'SUPER_ADMIN', description: 'Temporary frontend-only client demonstration access' })
         }
         setRoles(adminRoles)
-        setRolesError(availableRoles.length ? '' : 'No administrative roles are currently configured. The frontend-only Super Admin demo remains available.')
+        setRolesError(availableRoles.length ? '' : 'No administrative roles are currently configured in the local backend.')
       })
       .catch(() => {
         if (active) {
-          setRoles([{ name: 'SUPER_ADMIN', description: 'Temporary frontend-only client demonstration access' }])
-          setRolesError('The admin service is unavailable. The Super Admin demo can open the portal UI; live admin data and actions still require the backend.')
+          setRoles([{ name: 'SUPER_ADMIN', description: 'Full system access' }])
+          setRolesError('The admin service is unavailable. Sign-in still requires a real account in the local backend.')
         }
       })
       .finally(() => { if (active) setRolesLoading(false) })
@@ -106,12 +106,6 @@ export default function AdminGateway() {
     setSubmitting(true)
     try {
       if (!selectedRole) throw new Error('Select an administrative role to continue.')
-      if (selectedRole === 'SUPER_ADMIN' && email.trim().toLowerCase() === 'rbac.superadmin@example.com' && password === 'Password123!') {
-        loginDemo({ email, password, adminRole: selectedRole })
-        navigate('/admin/dashboard', { replace: true })
-        return
-      }
-
       const authenticatedUser = await login(email, password, { adminRole: selectedRole })
       const actualRole = authenticatedUser?.role?.name || authenticatedUser?.role
       if (actualRole !== selectedRole || !hasAdministrativePermission(authenticatedUser)) {
@@ -140,7 +134,7 @@ export default function AdminGateway() {
             <h1>Administrator sign in</h1>
             <p>Live access is checked against your backend account and assigned role. Client demo access opens the portal UI only and cannot use admin APIs.</p>
           </header>
-          <p className="admin-login-demo-note" role="note">Client demo access is frontend-only and does not authenticate to admin APIs or grant backend permissions. Use it only for UI demonstrations.</p>
+          <p className="admin-login-demo-note" role="note">Admin access is verified against the local backend account and its assigned role. Demo-only sessions cannot access live records.</p>
 
           {errorMessage && <div className="admin-login-alert" role="alert"><AlertCircle size={17} aria-hidden="true" /><span>{errorMessage}</span></div>}
           {rolesError && <div className="admin-login-alert" role="alert"><AlertCircle size={17} aria-hidden="true" /><span>{rolesError}</span></div>}

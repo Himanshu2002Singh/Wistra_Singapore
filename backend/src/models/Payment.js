@@ -21,6 +21,8 @@ class Payment extends Model {
           type: DataTypes.BIGINT.UNSIGNED,
           allowNull: true,
         },
+        event_registration_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: true, unique: true },
+        purpose: { type: DataTypes.ENUM('MEMBERSHIP', 'EVENT'), allowNull: false, defaultValue: 'MEMBERSHIP' },
         user_id: {
           type: DataTypes.BIGINT.UNSIGNED,
           allowNull: false,
@@ -98,6 +100,8 @@ class Payment extends Model {
     this.belongsTo(models.MembershipApplication, { foreignKey: 'application_id', as: 'application' });
     this.belongsTo(models.Membership, { foreignKey: 'membership_id', as: 'membership' });
     this.hasOne(models.Invoice, { foreignKey: 'payment_id', as: 'invoice' });
+    this.hasMany(models.PaymentSubmission, { foreignKey: 'payment_id', as: 'submissions' });
+    this.belongsTo(models.EventRegistration, { foreignKey: 'event_registration_id', as: 'eventRegistration' });
   }
 }
 

@@ -122,8 +122,10 @@ const register = async (req, res, next) => {
     const token = generateToken({
       sub: createdUser.id,
       role: roleName,
+      token_version: createdUser.token_version || 0,
     });
     const safeUser = createdUser.toJSON();
+    delete safeUser.token_version;
     safeUser.permissions = createdUser.role?.permissions?.map((permission) => permission.name) || [];
 
     return res.status(201).json({
@@ -236,11 +238,13 @@ const login = async (req, res, next) => {
     const token = generateToken({
       sub: user.id,
       role: roleName,
+      token_version: user.token_version || 0,
     });
 
     // Build sanitized user output
     const userJson = user.toJSON();
     delete userJson.password_hash;
+    delete userJson.token_version;
     userJson.permissions = user.role?.permissions?.map((permission) => permission.name) || [];
 
     return res.json({
@@ -275,9 +279,10 @@ const getMe = async (req, res, next) => {
  */
 const logout = async (req, res, next) => {
   try {
+    await User.increment('token_version', { by: 1, where: { id: req.user.id } });
     return res.json({
       success: true,
-      message: 'Logged out successfully. Please clear your access token.',
+      message: 'Logged out successfully. This session and other active sessions are no longer valid.',
     });
   } catch (error) {
     next(error);

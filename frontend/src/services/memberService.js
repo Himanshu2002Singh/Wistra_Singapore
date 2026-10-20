@@ -15,6 +15,11 @@ export const updateMyProfileApi = async (profileData) => {
   return response.data
 }
 
+export const getMemberDirectoryApi = async ({ search = '', company = '', page = 1, pageSize = 12 } = {}) => {
+  const response = await api.get('/membership/directory', { params: { search, company, page, pageSize } })
+  return response.data
+}
+
 export const getAdminMembershipsApi = async (params) => {
   const response = await api.get('/admin/memberships', { params })
   return response.data

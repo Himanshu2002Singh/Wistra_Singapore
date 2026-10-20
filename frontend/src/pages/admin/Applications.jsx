@@ -25,6 +25,11 @@ const STATUSES = [
 
 const humanize = (value) => String(value ?? '').replaceAll('_', ' ')
 const dateValue = (value) => value ? new Date(value).toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+const dateOnlyValue = (value) => {
+  if (!value) return '—'
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/)
+  return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])).toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' }) : dateValue(value)
+}
 const applicantName = (applicant, student) => [applicant?.first_name || student?.first_name, applicant?.last_name || student?.last_name].filter(Boolean).join(' ') || '—'
 const errorMessage = (error, subject) => {
   const status = error.response?.status
@@ -42,9 +47,17 @@ const hasPermission = (user, ...permissions) => {
 }
 
 function DetailRows({ title, values }) {
-  const entries = Object.entries(values || {}).filter(([, value]) => value !== null && value !== undefined && value !== '')
+  const internalField = (key) => key === 'id' || key.endsWith('_id') || ['created_at', 'updated_at', 'document_storage_key', 'document_mime_type'].includes(key)
+  const entries = Object.entries(values || {}).filter(([key, value]) => !internalField(key) && value !== null && value !== undefined && value !== '' && typeof value !== 'object')
   if (!entries.length) return null
-  return <section className="admin-application-detail-section"><h3>{title}</h3><dl>{entries.map(([key, value]) => <React.Fragment key={key}><dt>{humanize(key)}</dt><dd>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</dd></React.Fragment>)}</dl></section>
+  return <section className="admin-application-detail-section"><h3>{title}</h3><dl>{entries.map(([key, value]) => {
+    const label = key.replaceAll('_', ' ')
+    const formatted = key === 'date_of_birth' ? dateOnlyValue(value)
+      : ['submitted_at', 'reviewed_at'].includes(key) ? dateValue(value)
+        : ['status', 'membership_type', 'degree_type', 'enrollment_type'].includes(key) ? humanize(value)
+          : String(value)
+    return <React.Fragment key={key}><dt>{label.charAt(0).toUpperCase() + label.slice(1)}</dt><dd>{formatted}</dd></React.Fragment>
+  })}</dl></section>
 }
 
 export default function Applications() {
@@ -215,15 +228,42 @@ export default function Applications() {
       <p className="admin-kicker"><span /> Application detail</p>
       {detailLoading ? <p className="admin-application-state" role="status">Loading application details…</p> : detailError ? <div className="admin-application-error" role="alert">{detailError}<button type="button" onClick={() => loadDetail(selectedId)}>Try again</button></div> : application && <>
         <h2>{applicantName(application.applicant, application.studentProfile)}</h2>
-        <DetailRows title="Application" values={application} />
-        <DetailRows title="Applicant" values={application.applicant} />
+        <DetailRows title="Application" values={{
+          application_number: application.application_number,
+          membership_type: application.membership_type,
+          status: application.status,
+          submitted_at: application.submitted_at,
+          reviewed_at: application.reviewed_at,
+          reviewer: applicantName(application.reviewer),
+          review_remarks: application.review_remarks || application.remarks,
+        }} />
+        <DetailRows title="Applicant" values={{
+          full_name: applicantName(application.applicant, application.studentProfile),
+          email: application.applicant?.email || application.studentProfile?.email,
+          phone: application.applicant?.phone || application.studentProfile?.mobile_number,
+          account_status: application.applicant?.status,
+        }} />
         <DetailRows title="Individual profile" values={detail.profiles?.individual} />
         <DetailRows title="Industry classification" values={{
           main_category: detail.profiles?.corporate?.industry_main_category,
           sub_category: detail.profiles?.corporate?.industry_sub_category,
         }} />
         <DetailRows title="Corporate profile" values={Object.fromEntries(Object.entries(detail.profiles?.corporate || {}).filter(([key]) => !key.startsWith('industry_')))} />
-        <DetailRows title="Student information" values={detail.profiles?.student} />
+        <DetailRows title="Student information" values={{
+          first_name: detail.profiles?.student?.first_name,
+          last_name: detail.profiles?.student?.last_name,
+          email: detail.profiles?.student?.email,
+          mobile_number: detail.profiles?.student?.mobile_number,
+          invoicing_address: detail.profiles?.student?.invoicing_address,
+          nationality: detail.profiles?.student?.nationality,
+          date_of_birth: detail.profiles?.student?.date_of_birth,
+          institution_name: detail.profiles?.student?.institution_name,
+          degree_type: detail.profiles?.student?.degree_type,
+          field_of_study: detail.profiles?.student?.field_of_study,
+          enrollment_type: detail.profiles?.student?.enrollment_type,
+          graduation_month: detail.profiles?.student?.graduation_month,
+          graduation_year: detail.profiles?.student?.graduation_year,
+        }} />
         {detail.profiles?.student?.document_original_name && <section className="admin-application-detail-section"><h3>Proof of enrollment</h3><p>{detail.profiles.student.document_original_name} · {Math.ceil(detail.profiles.student.document_size / 1024)} KB</p><button type="button" onClick={downloadStudentDocument} disabled={documentLoading} className="admin-sample-view mt-3 inline-flex items-center gap-2"> <Download size={14} /> {documentLoading ? 'Downloading…' : 'Download document'}</button></section>}
         {Array.isArray(detail.statusHistory) && detail.statusHistory.length > 0 && <section className="admin-application-detail-section"><h3>Status history</h3><ul className="admin-application-history">{detail.statusHistory.map((entry) => <li key={entry.id}><strong>{humanize(entry.old_status || 'NEW')} → {humanize(entry.new_status)}</strong><span>{dateValue(entry.created_at)}{entry.changedByUser ? ` · ${applicantName(entry.changedByUser)}` : ''}</span>{entry.reason && <p>{entry.reason}</p>}</li>)}</ul></section>}
         {notice && <div className="admin-sample-notice" role="status">{notice}</div>}

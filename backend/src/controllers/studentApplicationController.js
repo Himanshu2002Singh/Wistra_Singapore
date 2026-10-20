@@ -3,7 +3,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const { sequelize, MembershipApplication, MembershipStatusHistory, StudentProfile, AuditLog, User } = require('../models');
+const { sequelize, MembershipApplication, MembershipStatusHistory, StudentProfile, AuditLog } = require('../models');
 const { generateApplicationNumber } = require('../utils/applicationNumber');
 
 const STORAGE_DIR = path.resolve(process.env.STUDENT_DOCUMENT_STORAGE_PATH || path.join(__dirname, '../../private/student-documents'));
@@ -73,12 +73,11 @@ const submitStudentApplication = async (req, res, next) => {
 
     const data = Object.fromEntries(Object.entries(req.body).map(([key, value]) => [key, value.trim()]));
     data.email = data.email.toLowerCase();
-    const [duplicateProfile, existingAccount] = await Promise.all([
-      StudentProfile.findOne({ where: { email: data.email } }),
-      User.findOne({ where: { email: data.email }, attributes: ['id'] }),
-    ]);
+    if (data.email !== String(req.user?.email || '').toLowerCase()) {
+      return res.status(403).json({ success: false, message: 'Sign in with the email address used for this student application.' });
+    }
+    const duplicateProfile = await StudentProfile.findOne({ where: { email: data.email } });
     if (duplicateProfile) return res.status(409).json({ success: false, message: 'An application already exists for this email address.' });
-    if (existingAccount) return res.status(409).json({ success: false, message: 'Email address is already registered.' });
 
     const documentType = sniffDocument(req.studentDocument.buffer);
     const storageKey = `${randomUUID()}.${documentType.extension}`;
@@ -89,7 +88,7 @@ const submitStudentApplication = async (req, res, next) => {
     transaction = await sequelize.transaction();
     const application = await MembershipApplication.create({
       application_number: await generateApplicationNumber(),
-      user_id: null,
+      user_id: req.user.id,
       membership_type: 'STUDENT',
       status: 'PENDING',
       submitted_at: new Date(),
@@ -124,7 +123,7 @@ const submitStudentApplication = async (req, res, next) => {
       reason: 'Student membership application submitted.',
     }, { transaction });
     await AuditLog.create({
-      user_id: null,
+      user_id: req.user.id,
       action: 'SUBMIT_STUDENT_APPLICATION',
       module: 'MEMBERSHIP',
       entity_type: 'MembershipApplication',
@@ -148,12 +147,43 @@ const submitStudentApplication = async (req, res, next) => {
   }
 };
 
+// GET /membership/applications/student is used by the registration page to
+// check whether the signed-in member already has a student application. A new
+// applicant receives a successful empty result so opening the form is not
+// treated as a missing API resource.
+const getMyStudentApplication = async (req, res, next) => {
+  try {
+    const application = await MembershipApplication.findOne({
+      where: { user_id: req.user.id, membership_type: 'STUDENT' },
+      order: [['created_at', 'DESC']],
+      include: [{ model: StudentProfile, as: 'studentProfile', attributes: { exclude: ['document_storage_key'] } }],
+      attributes: [
+        'id', 'application_number', 'membership_type', 'status', 'submitted_at',
+        'reviewed_at', 'approved_at', 'rejected_at', 'review_remarks', 'created_at',
+      ],
+    });
+
+    return res.json({ success: true, data: { application } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const downloadStudentDocument = async (req, res, next) => {
   try {
     const profile = await StudentProfile.findOne({ where: { application_id: req.params.id } });
     if (!profile) return res.status(404).json({ success: false, message: 'Student application document not found.' });
     const filePath = path.join(STORAGE_DIR, path.basename(profile.document_storage_key));
     await fs.access(filePath);
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'STUDENT_DOCUMENT_ACCESS_GRANTED',
+      module: 'MEMBERSHIP',
+      entity_type: 'MembershipApplication',
+      entity_id: String(profile.application_id),
+      ip_address: req.ip,
+      user_agent: String(req.get('user-agent') || '').slice(0, 500),
+    });
     res.set({
       'Content-Type': profile.document_mime_type,
       'Content-Disposition': `attachment; filename="${profile.document_original_name.replace(/["\\\r\n]/g, '_')}"`,
@@ -168,4 +198,4 @@ const downloadStudentDocument = async (req, res, next) => {
   }
 };
 
-module.exports = { submitStudentApplication, downloadStudentDocument };
+module.exports = { submitStudentApplication, getMyStudentApplication, downloadStudentDocument };

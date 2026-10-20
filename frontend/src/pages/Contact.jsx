@@ -1,11 +1,37 @@
-import React from 'react'
+import React, { useState } from 'react'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
+import { submitContactMessageApi } from '@/services/contactService'
 
 // Exclusive Curated Background Image for Contact
 import contactHeroBg from '../assets/images/wista/client-provided/wista-networking-dinner.jpg'
 
 export default function Contact() {
+  const [loading, setLoading] = useState(false)
+  const [notice, setNotice] = useState(null)
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    if (loading) return
+    setLoading(true)
+    setNotice(null)
+    const form = event.currentTarget
+    const formData = new FormData(form)
+    try {
+      const result = await submitContactMessageApi({
+        name: formData.get('name'),
+        email: formData.get('email'),
+        message: formData.get('message'),
+      })
+      setNotice({ type: 'success', message: result.message || 'Your message has been recorded.' })
+      form.reset()
+    } catch (error) {
+      setNotice({ type: 'error', message: error.response?.data?.message || 'We could not record your message. Please try again.' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <PageShell currentPage="CONTACT">
       <PageIntro 
@@ -27,20 +53,21 @@ export default function Contact() {
               <span>Singapore 369977</span>
             </address>
           </div>
-          <form className="contact-form" onSubmit={(e) => { e.preventDefault(); alert('Message sent!'); }}>
+          <form className="contact-form" onSubmit={handleSubmit}>
+            {notice && <p role={notice.type === 'error' ? 'alert' : 'status'} className={notice.type === 'error' ? 'text-sm text-red-700' : 'text-sm text-emerald-800'}>{notice.message}</p>}
             <label>
               Name
-              <input required name="name" />
+              <input required name="name" maxLength={100} disabled={loading} />
             </label>
             <label>
               Email
-              <input required type="email" name="email" />
+              <input required type="email" name="email" maxLength={255} disabled={loading} />
             </label>
             <label>
               Message
-              <textarea required name="message" rows={5} />
+              <textarea required name="message" rows={5} maxLength={5000} disabled={loading} />
             </label>
-            <button className="editorial-link" type="submit">Send message ↗</button>
+            <button className="editorial-link" type="submit" disabled={loading}>{loading ? 'Recording…' : 'Send message ↗'}</button>
           </form>
         </div>
       </section>

@@ -602,6 +602,8 @@ button { border: 0; background: none; color: inherit; cursor: pointer }
 
 /* Portal forms */
 .form-group { margin-bottom: 20px }
+.student-personal-grid > :nth-child(3) label, .student-personal-grid > :nth-child(4) .form-group label { min-height: 2rem }
+@media (max-width: 767px) { .student-personal-grid > :nth-child(3) label, .student-personal-grid > :nth-child(4) .form-group label { min-height: 0 } }
 .form-group label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #657480; margin-bottom: 8px }
 .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; background: #fff; color: var(--ink) }
 .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px #1b9aaa20 }
@@ -826,6 +828,13 @@ button { border: 0; background: none; color: inherit; cursor: pointer }
 .admin-content-form textarea { resize: vertical; }
 .admin-content-form input:focus, .admin-content-form select:focus, .admin-content-form textarea:focus { outline: 2px solid #1b9aaa; outline-offset: 1px; }
 .admin-content-form .admin-sample-modal-actions { justify-content: flex-end; }
+.news-read-link { display: inline-flex; align-items: center; gap: 9px; margin-top: 7px; color: #0f2d52; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-decoration: none; text-transform: uppercase; }
+.news-read-link:hover { color: #1b9aaa; }
+.news-article-body { max-width: 980px; margin: 0 auto; }
+.news-article-body > .news-byline { margin-bottom: 28px; }
+.news-article-content { color: #52636e; font-size: 15px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
+.news-article-content p { margin: 0 0 1.25em; }
+.news-article-content br { display: block; content: ''; margin-bottom: .6em; }
 .admin-content-module .admin-sample-table { min-width: 900px; }
 .admin-content-excerpt { max-width: 460px; margin: 5px 0 0; color: #657480; font-size: 11px; line-height: 1.5; }
 .admin-content-help { color: #657480; font-size: 11px; }
@@ -1618,7 +1627,7 @@ body:has(.editorial-footer) .back-to-top-btn:hover { border-color: #88d2d8; back
 .public-application-form .border-white\/15 { border-color: #d9dee3 !important; }
 .public-application-form input, .public-application-form textarea, .public-application-form select { border-color: #b8c5ce !important; background: #f5f3ee !important; color: #202e39 !important; }
 .public-application-form input::placeholder, .public-application-form textarea::placeholder { color: #73818a !important; }
-.public-application-form button { border-color: #f35d5d; background: #f35d5d; color: #fff !important; }
+.public-application-form button[type="submit"] { border-color: #f35d5d; background: #f35d5d; color: #fff !important; }
 .public-login-panel { color: #202e39; box-shadow: 0 18px 44px rgba(15,45,82,.08); }
 .public-login-panel .text-white { color: #0f2d52 !important; }
 .public-login-panel input { border-color: #b8c5ce !important; background: #f5f3ee !important; color: #202e39 !important; }
@@ -1991,3 +2000,38 @@ body:has(.editorial-footer) .back-to-top-btn:hover { border-color: #88d2d8; back
     font-size: 13px;
   }
 }
+
+/* Keep the member payment action visible against the light payment row. */
+.member-payment-action { display: inline-flex; align-items: center; justify-content: center; padding: 0.5rem 0.75rem; border: 1px solid #c74738 !important; border-radius: 0.375rem; background-color: #c74738 !important; color: #fff !important; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; line-height: 1.25; text-transform: uppercase; white-space: nowrap; box-shadow: 0 1px 2px rgb(11 31 51 / 15%); transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease }
+.member-payment-action:hover { background-color: #a9362a !important; border-color: #a9362a !important; box-shadow: 0 2px 5px rgb(11 31 51 / 24%) }
+.member-payment-action:focus-visible { outline: 3px solid #163d5a; outline-offset: 3px }
+
+
+/* High contrast for unavailable payment instructions and the disabled submit state. */
+.payment-instructions-alert { padding: 0.85rem 1rem; border: 1px solid #e7b85c; border-radius: 0.375rem; background-color: #fff7e6 !important; color: #713f12 !important; font-size: 0.8125rem; line-height: 1.5; }
+.payment-submit-button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.5rem; padding: 0.625rem 1rem; border: 1px solid #c74738 !important; border-radius: 0.375rem; background-color: #c74738 !important; color: #fff !important; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; box-shadow: 0 1px 2px rgb(11 31 51 / 15%); }
+.payment-submit-button:hover:not(:disabled) { border-color: #a9362a !important; background-color: #a9362a !important; }
+.payment-submit-button:disabled { border-color: #aebbc6 !important; background-color: #dce4ea !important; color: #34495e !important; opacity: 1 !important; cursor: not-allowed; box-shadow: none; }
+.payment-dialog-panel { max-height: calc(100vh - 2rem); overflow-y: auto; background-color: #0c243b !important; color: #f1f5f9 !important; border: 1px solid rgb(255 255 255 / 20%); }
+.payment-dialog-panel h3, .payment-dialog-panel .text-white { color: #fff !important; }
+.payment-dialog-panel .text-slate-200 { color: #e2e8f0 !important; }
+.payment-dialog-panel .text-slate-300 { color: #cbd5e1 !important; }
+.payment-dialog-panel .text-slate-400 { color: #94a3b8 !important; }
+.payment-dialog-panel input.text-white, .payment-dialog-panel select.text-white, .payment-dialog-panel textarea.text-white, .payment-dialog-panel input.text-slate-300 { background-color: #fff !important; color: #0b1f33 !important; border-color: #bfcdd4 !important; }
+.payment-dialog-panel select.text-white option { background-color: #fff; color: #0b1f33; }
+.payment-dialog-panel input.text-slate-300::file-selector-button { margin-right: 0.5rem; padding: 0.4rem 0.65rem; border: 1px solid #bfcdd4; border-radius: 0.25rem; background-color: #eef1f2; color: #0b1f33; }
+.payment-dialog-panel input.text-white::placeholder { color: #607886 !important; opacity: 1; }
+.payment-dialog-back { padding: 0.4rem 0.65rem; border: 1px solid rgb(255 255 255 / 28%) !important; border-radius: 0.35rem; background-color: #102f4a !important; color: #f1f5f9 !important; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+.payment-flow-choice { display: flex; width: 100%; flex-direction: column; gap: 0.4rem; padding: 1rem; border: 1px solid rgb(94 229 233 / 40%) !important; border-radius: 0.65rem; background-color: #102f4a !important; color: #f1f5f9 !important; text-align: left; transition: background-color 150ms ease, border-color 150ms ease; }
+.payment-flow-choice:hover { border-color: #5ee5e9 !important; background-color: #163d5a !important; }
+.payment-flow-choice-title { color: #fff !important; font-size: 0.95rem; font-weight: 700; }
+.payment-flow-choice-copy { color: #cbd5e1 !important; font-size: 0.78rem; line-height: 1.5; }
+.payment-method-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+.payment-method-choice { padding: 0.7rem 0.5rem; border: 1px solid rgb(255 255 255 / 28%) !important; border-radius: 0.4rem; background-color: #102f4a !important; color: #e2e8f0 !important; font-size: 0.75rem; font-weight: 700; }
+.payment-method-choice[aria-pressed="true"] { border-color: #5ee5e9 !important; background-color: #164955 !important; color: #fff !important; }
+.payment-details-panel { padding: 1rem; border: 1px solid rgb(255 255 255 / 16%); border-radius: 0.65rem; background-color: #071626 !important; color: #cbd5e1 !important; font-size: 0.78rem; line-height: 1.5; overflow-wrap: anywhere; }
+.payment-details-panel strong { color: #fff !important; font-weight: 700; }
+.payment-reference-note { margin-top: 0.4rem; padding-top: 0.65rem; border-top: 1px solid rgb(255 255 255 / 16%); color: #cbd5e1 !important; }
+.payment-paynow-qr { width: min(100%, 280px); height: auto; border-radius: 0.5rem; background: #fff; padding: 0.5rem; }
+.payment-secondary-action { padding: 0.7rem 1rem; border: 1px solid #5ee5e9 !important; border-radius: 0.4rem; background: #102f4a !important; color: #5ee5e9 !important; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+.payment-secondary-action:hover { background: #164955 !important; color: #fff !important; }

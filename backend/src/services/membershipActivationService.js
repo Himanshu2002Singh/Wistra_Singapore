@@ -78,7 +78,7 @@ const getEffectiveMembershipStatus = (membership) => {
  * @param {Object} [params.transaction] - Optional existing transaction
  * @returns {Promise<Object>} The activated Membership record
  */
-const activateMembership = async ({ applicationId, adminId, transaction: externalTx }) => {
+const activateMembership = async ({ applicationId, adminId, transaction: externalTx, membershipPeriod = null }) => {
   const transaction = externalTx || (await sequelize.transaction());
   const isSelfManagedTx = !externalTx;
 
@@ -93,6 +93,12 @@ const activateMembership = async ({ applicationId, adminId, transaction: externa
       const err = new Error(`Cannot activate membership for application in status '${application.status}'. Application must be approved.`);
       err.statusCode = 409;
       throw err;
+    }
+
+    const alreadyActivated = await Membership.findOne({ where: { application_id: applicationId, status: 'ACTIVE' }, transaction, lock: transaction.LOCK.UPDATE });
+    if (alreadyActivated) {
+      if (isSelfManagedTx) await transaction.commit();
+      return alreadyActivated;
     }
 
     // 2. Verify PAID payment exists
@@ -128,7 +134,9 @@ const activateMembership = async ({ applicationId, adminId, transaction: externa
     }
 
     // 4. Calculate Period & Generate Number
-    const period = calculateMembershipPeriod(new Date());
+    const period = membershipPeriod?.start_date && membershipPeriod?.end_date
+      ? membershipPeriod
+      : calculateMembershipPeriod(new Date());
     const membershipNumber = await generateMembershipNumber();
     const now = new Date();
 

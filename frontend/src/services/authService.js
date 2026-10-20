@@ -15,6 +15,16 @@ export const registerApi = async (userData) => {
   return response.data
 }
 
+export const requestPasswordResetApi = async (email) => {
+  const response = await api.post('/auth/password-reset-requests', { email })
+  return response.data
+}
+
+export const resetPasswordApi = async ({ token, password }) => {
+  const response = await api.post('/auth/password-resets', { token, password })
+  return response.data
+}
+
 export const getMeApi = async () => {
   const response = await api.get('/auth/me')
   return response.data

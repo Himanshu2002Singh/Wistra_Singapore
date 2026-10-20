@@ -198,6 +198,9 @@ const runTests = async () => {
       await new Promise((resolve) => server.close(resolve));
     }
     if (createdUserIds.length) await User.destroy({ where: { id: createdUserIds } });
+    if (createdUserIds.length && await User.count({ where: { id: createdUserIds } })) {
+      throw new Error('RBAC test users were not fully cleaned up.');
+    }
   }
 };
 

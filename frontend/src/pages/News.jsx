@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
 import Lightbox from '@/components/ui/Lightbox'
@@ -18,6 +19,7 @@ const newsImages = [newsCard1, newsCard2, newsCard3, newsCard4, newsCard5, newsC
 
 export default function News() {
   const [activeLightbox, setActiveLightbox] = useState(null)
+  const [attempt, setAttempt] = useState(0)
   const [newsState, setNewsState] = useState({ articles: [], loading: true, error: false })
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export default function News() {
       .catch(() => { if (active) setNewsState({ articles: [], loading: false, error: true }) })
 
     return () => { active = false }
-  }, [])
+  }, [attempt])
 
   const news = newsState.articles
 
@@ -79,6 +81,7 @@ export default function News() {
                 <h2 id="news-featured-heading">{news[0].title}</h2>
                 <p>{news[0].excerpt}</p>
                 <p className="news-byline">By {news[0].author}</p>
+                <Link className="news-read-link" to={`/news/${news[0].id}`}>Read story <span aria-hidden="true">→</span></Link>
               </div>
             </article>
           </section>
@@ -107,6 +110,7 @@ export default function News() {
                     <h3>{item.title}</h3>
                     <p>{item.excerpt}</p>
                     <p className="news-byline">By {item.author}</p>
+                    <Link className="news-read-link" to={`/news/${item.id}`}>Read story <span aria-hidden="true">→</span></Link>
                   </div>
                 </article>
               ))}
@@ -115,7 +119,7 @@ export default function News() {
         </ScrollReveal>
       )}
       {newsState.loading && <p className="section-pad text-sm text-slate-600" role="status">Loading published news…</p>}
-      {newsState.error && <p className="section-pad text-sm text-slate-600" role="status">Published news is temporarily unavailable. Please try again later.</p>}
+      {newsState.error && <div className="section-pad text-sm text-slate-600" role="alert"><p>Published news is temporarily unavailable. Please try again later.</p><button type="button" onClick={() => setAttempt((value) => value + 1)}>Try again</button></div>}
       {!newsState.loading && !newsState.error && !news.length && <p className="section-pad text-sm text-slate-600">There are no published stories yet.</p>}
     </PageShell>
   )

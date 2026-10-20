@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext'
 import {
   getAdminPaymentByIdApi,
   getAdminPaymentsApi,
+  getAdminPaymentProofApi,
   getInvoiceByIdApi,
   refundPaymentApi,
   rejectPaymentApi,
@@ -14,6 +15,7 @@ import {
 const PAGE_SIZE = 10
 const PAYMENT_STATUSES = ['PENDING', 'SUBMITTED', 'UNDER_VERIFICATION', 'PAID', 'FAILED', 'REJECTED', 'REFUNDED', 'CANCELLED']
 const PAYMENT_METHODS = ['BANK_TRANSFER', 'PAYNOW', 'CARD', 'COMPLIMENTARY', 'OTHER']
+const PAYMENT_PURPOSES = ['MEMBERSHIP', 'EVENT']
 const humanize = (value) => String(value ?? '').replaceAll('_', ' ')
 const memberName = (user) => [user?.first_name, user?.last_name].filter(Boolean).join(' ') || '—'
 const dateValue = (value, includeTime = false) => {
@@ -54,6 +56,7 @@ export default function Payments() {
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('')
+  const [purpose, setPurpose] = useState('')
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState('')
@@ -83,6 +86,7 @@ export default function Payments() {
         limit: PAGE_SIZE,
         ...(status ? { status } : {}),
         ...(paymentMethod ? { payment_method: paymentMethod } : {}),
+        ...(purpose ? { purpose } : {}),
         ...(query.trim() ? { search: query.trim() } : {}),
       })
       if (sequence !== requestSequence.current) return
@@ -100,7 +104,7 @@ export default function Payments() {
     } finally {
       if (sequence === requestSequence.current) setLoading(false)
     }
-  }, [page, status, paymentMethod, query])
+  }, [page, status, paymentMethod, purpose, query])
 
   useEffect(() => {
     const timer = window.setTimeout(loadPayments, query ? 300 : 0)
@@ -182,6 +186,16 @@ export default function Payments() {
     }
   }
 
+  const downloadProof = async (submission) => {
+    try {
+      const blob = await getAdminPaymentProofApi(detail.id, submission.id)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url; link.download = submission.proof_original_name || `payment-proof-${submission.id}`
+      document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url)
+    } catch (error) { setActionError(errorMessage(error, 'Payment proof')) }
+  }
+
   const canVerify = hasAnyPermission(user, 'payments.manage', 'payments.verify')
   const canReject = hasAnyPermission(user, 'payments.manage', 'payments.reject')
   const canRefund = hasAnyPermission(user, 'payments.manage', 'payments.refund')
@@ -200,12 +214,13 @@ export default function Payments() {
       <label><Search size={16} /><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} placeholder="Search payments..." aria-label="Search payments" /></label>
       <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }} aria-label="Filter by payment status"><option value="">All payment statuses</option>{PAYMENT_STATUSES.map((item) => <option key={item} value={item}>{humanize(item)}</option>)}</select>
       <select value={paymentMethod} onChange={(event) => { setPaymentMethod(event.target.value); setPage(1) }} aria-label="Filter by payment method"><option value="">All payment methods</option>{PAYMENT_METHODS.map((item) => <option key={item} value={item}>{humanize(item)}</option>)}</select>
+      <select value={purpose} onChange={(event) => { setPurpose(event.target.value); setPage(1) }} aria-label="Filter by payment purpose"><option value="">All purposes</option>{PAYMENT_PURPOSES.map((item) => <option key={item} value={item}>{humanize(item)}</option>)}</select>
     </div>
     {listError && <div className="admin-payment-error" role="alert">{listError}<button type="button" onClick={loadPayments}>Try again</button></div>}
-    <div className="admin-sample-table-wrap"><table className="admin-sample-table"><thead><tr><th>Payment reference</th><th>Member</th><th>Membership type</th><th>Amount</th><th>Method</th><th>Payment status</th><th>Paid / created</th><th>Invoice</th><th>Invoice status</th><th aria-label="Actions">Actions</th></tr></thead><tbody>
+    <div className="admin-sample-table-wrap"><table className="admin-sample-table"><thead><tr><th>Payment reference</th><th>Member</th><th>Purpose / details</th><th>Amount</th><th>Method</th><th>Payment status</th><th>Paid / created</th><th>Invoice</th><th>Invoice status</th><th aria-label="Actions">Actions</th></tr></thead><tbody>
       {loading ? <tr><td colSpan="10" className="admin-sample-empty" role="status">Loading payments…</td></tr> : payments.length ? payments.map((item) => <tr key={item.id}>
         <td data-label="Payment reference">{item.payment_reference || item.id}</td><td data-label="Member">{memberName(item.user)}</td>
-        <td data-label="Membership type">{humanize(item.application?.membership_type || item.invoice?.membership_type || item.membership?.membership_type)}</td>
+        <td data-label="Purpose / details">{humanize(item.purpose)} · {item.invoice?.description || humanize(item.application?.membership_type || item.invoice?.membership_type || item.membership?.membership_type)}</td>
         <td data-label="Amount">{moneyValue(item.currency, item.amount)}</td><td data-label="Method">{humanize(item.payment_method)}</td>
         <td data-label="Payment status"><span className={`admin-sample-status status-${String(item.payment_status || '').toLowerCase().replaceAll('_', '-')}`}>{humanize(item.payment_status)}</span></td>
         <td data-label="Paid / created">{dateValue(paymentDate(item))}</td><td data-label="Invoice">{item.invoice?.invoice_number || '—'}</td>
@@ -220,11 +235,13 @@ export default function Payments() {
       <p className="admin-kicker"><span /> Finance detail</p>
       {detailLoading ? <p className="admin-payment-state" role="status">Loading payment details…</p> : detailError ? <div className="admin-payment-error" role="alert">{detailError}<button type="button" onClick={() => loadDetail(selectedId)}>Try again</button></div> : payment && <>
         <h2>{payment.payment_reference || `Payment ${payment.id}`}</h2>
-        <DetailRows title="Payment" values={{ payment_reference: payment.payment_reference, payment_status: payment.payment_status, amount: moneyValue(payment.currency, payment.amount), payment_method: payment.payment_method, transaction_reference: payment.transaction_reference, paid_at: dateValue(payment.paid_at, true), verified_at: dateValue(payment.verified_at, true), created_at: dateValue(payment.createdAt || payment.created_at, true), failure_reason: payment.failure_reason, notes: payment.notes }} />
+        <DetailRows title="Payment" values={{ purpose: payment.purpose, payment_reference: payment.payment_reference, payment_status: payment.payment_status, amount: moneyValue(payment.currency, payment.amount), payment_method: payment.payment_method, transaction_reference: payment.transaction_reference, paid_at: dateValue(payment.paid_at, true), verified_at: dateValue(payment.verified_at, true), created_at: dateValue(payment.createdAt || payment.created_at, true), failure_reason: payment.failure_reason, notes: payment.notes }} />
         <DetailRows title="Member / applicant" values={{ name: memberName(payment.user), email: payment.user?.email, phone: payment.user?.phone }} />
         <DetailRows title="Application" values={{ application_number: payment.application?.application_number, membership_type: payment.application?.membership_type, status: payment.application?.status, submitted_at: dateValue(payment.application?.submitted_at), approved_at: dateValue(payment.application?.approved_at) }} />
         <DetailRows title="Membership" values={{ membership_number: payment.membership?.membership_number, membership_type: payment.membership?.membership_type, status: payment.membership?.status, start_date: dateValue(payment.membership?.start_date), end_date: dateValue(payment.membership?.end_date) }} />
+        {payment.eventRegistration && <DetailRows title="Event registration" values={{ event: payment.eventRegistration.event?.title, starts_at: dateValue(payment.eventRegistration.event?.starts_at, true), registration_status: payment.eventRegistration.status, payment_status: payment.eventRegistration.payment_status, ticket_uid: payment.eventRegistration.ticket_uid, checked_in_at: dateValue(payment.eventRegistration.checked_in_at, true) }} />}
         {invoice && <DetailRows title="Invoice" values={{ invoice_number: invoice.invoice_number, status: invoice.status, membership_type: invoice.membership_type, subtotal: moneyValue(invoice.currency, invoice.subtotal), discount: moneyValue(invoice.currency, invoice.discount), total: moneyValue(invoice.currency, invoice.total), issued_at: dateValue(invoice.issued_at), due_at: dateValue(invoice.due_at), paid_at: dateValue(invoice.paid_at) }} />}
+        {payment.submissions?.length > 0 && <section className="admin-payment-detail-section"><h3>Transfer submissions and proof</h3>{payment.submissions.map((submission) => <div key={submission.id} className="border-b border-slate-200/10 py-3 text-sm"><p>{humanize(submission.payment_method)} · {submission.status} · {moneyValue(payment.currency, submission.amount)}</p><p className="text-xs text-slate-400">Reference {submission.transaction_reference} · transferred {dateValue(submission.transfer_date)} · submitted {dateValue(submission.created_at, true)}</p>{submission.review_reason && <p className="mt-1 text-xs text-red-200">Finance feedback: {submission.review_reason}</p>}{submission.reviewed_at && <p className="text-xs text-slate-400">Reviewed {dateValue(submission.reviewed_at, true)}{submission.reviewer ? ` by ${memberName(submission.reviewer)}` : ''}</p>}<button type="button" className="mt-2 text-cyan-300 underline" onClick={() => downloadProof(submission)}>Download private proof</button></div>)}</section>}
         {invoiceError && <div className="admin-payment-inline-error" role="status">Invoice detail endpoint could not be read: {invoiceError} The invoice fields returned with the payment are shown when available.</div>}
         {notice && <div className="admin-sample-notice" role="status">{notice}</div>}
         {actionError && <div className="admin-payment-error" role="alert">{actionError}</div>}
@@ -238,7 +255,7 @@ export default function Payments() {
             {canRefund && refundAvailable && refundConfirm && <><span className="admin-payment-confirm-copy">Confirm refund? This updates the payment and related invoice through the backend.</span><button type="button" onClick={() => runPaymentAction('refund')} disabled={actionLoading}>{actionLoading ? 'Refunding…' : 'Confirm refund'}</button><button type="button" onClick={() => setRefundConfirm(false)} disabled={actionLoading}>Keep payment</button></>}
           </div>
         </>}
-        {payment.payment_status === 'PAID' && <p className="admin-payment-state">Payment is verified. Membership activation remains a separate backend workflow.</p>}
+        {payment.payment_status === 'PAID' && <p className="admin-payment-state">Payment is verified{payment.membership ? ` and membership ${payment.membership.membership_number} is active` : payment.eventRegistration?.ticket_uid ? `; event ticket ${payment.eventRegistration.ticket_uid} is confirmed` : ''}.</p>}
       </>}
     </div></div>}
   </div></AdminLayout>
