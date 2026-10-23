@@ -1,6 +1,11 @@
 'use strict';
 
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const { randomUUID } = require('node:crypto');
 const { Event, NewsArticle, AuditLog } = require('../models');
+
+const NEWS_IMAGE_STORAGE_DIR = path.resolve(process.env.NEWS_IMAGE_STORAGE_PATH || path.join(__dirname, '../../private/news-images'));
 
 const text = (value, max) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max;
 const sanitizeText = (value) => value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim();
@@ -8,6 +13,7 @@ const hasMarkup = (value) => /<\/?[a-z][^>]*>/i.test(value);
 const validImageReference = (value) => {
   if (value === undefined || value === null || value === '') return true;
   if (typeof value !== 'string' || value.length > 2048) return false;
+  if (/^\/content\/news\/images\/[0-9a-f-]+\.(?:jpg|png|webp)$/i.test(value)) return true;
   try {
     const parsed = new URL(value);
     return ['http:', 'https:'].includes(parsed.protocol) && Boolean(parsed.hostname) && !parsed.username && !parsed.password;
@@ -114,6 +120,29 @@ const listAdminNews = async (req, res, next) => {
       limit: 200,
     });
     return res.json({ success: true, data: articles });
+  } catch (error) { return next(error); }
+};
+
+const uploadAdminNewsImage = async (req, res, next) => {
+  try {
+    if (!req.newsImage?.buffer) return res.status(400).json({ success: false, message: 'Choose an image file to upload.' });
+    const { buffer, claimedType } = req.newsImage;
+    const isPng = buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    const isJpeg = buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    const isWebp = buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP';
+    const imageType = isPng ? { mime: 'image/png', extension: 'png' }
+      : isJpeg ? { mime: 'image/jpeg', extension: 'jpg' }
+        : isWebp ? { mime: 'image/webp', extension: 'webp' } : null;
+    if (!imageType || (claimedType && claimedType !== imageType.mime)) {
+      return res.status(400).json({ success: false, message: 'Use a valid JPEG, PNG, or WebP image.' });
+    }
+    if (process.env.NODE_ENV === 'production' && !process.env.NEWS_IMAGE_STORAGE_PATH) {
+      return res.status(503).json({ success: false, message: 'News image storage is not configured. Set NEWS_IMAGE_STORAGE_PATH to a persistent directory.' });
+    }
+    await fs.mkdir(NEWS_IMAGE_STORAGE_DIR, { recursive: true });
+    const storageKey = `${randomUUID()}.${imageType.extension}`;
+    await fs.writeFile(path.join(NEWS_IMAGE_STORAGE_DIR, storageKey), buffer, { flag: 'wx', mode: 0o644 });
+    return res.status(201).json({ success: true, data: { image_url: `/content/news/images/${storageKey}` } });
   } catch (error) { return next(error); }
 };
 
@@ -238,6 +267,7 @@ module.exports = {
   listAdminEvents,
   createAdminEvent,
   listAdminNews,
+  uploadAdminNewsImage,
   createAdminNews,
   updateAdminNews,
   setAdminNewsPublication,

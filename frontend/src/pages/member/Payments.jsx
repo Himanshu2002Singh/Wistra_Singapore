@@ -157,13 +157,10 @@ const Payments = () => {
       setActionMessage({ type: 'success', text: 'Your invoice is ready. Use Pay Now / Submit in Payment History to continue.' });
       await fetchPayments();
     } catch (error) {
-      const status = error.response?.status;
       const message = error.response?.data?.message;
       setActionMessage({
         type: 'error',
-        text: status === 409 && message?.toLowerCase().includes('student membership fee')
-          ? 'Your application is approved, but Finance has not configured the student membership fee yet. The invoice and payment option will be available once Finance sets the fee.'
-          : message || 'We could not prepare your invoice. Please contact Finance or try again later.',
+        text: message || 'We could not prepare your invoice. Please contact Finance or try again later.',
       });
     } finally {
       setCreatingPaymentFor(null);

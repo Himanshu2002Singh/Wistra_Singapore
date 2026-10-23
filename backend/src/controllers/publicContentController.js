@@ -1,7 +1,23 @@
 'use strict';
 
+const path = require('node:path');
 const { Op } = require('sequelize');
 const { Event, NewsArticle } = require('../models');
+
+const NEWS_IMAGE_STORAGE_DIR = path.resolve(process.env.NEWS_IMAGE_STORAGE_PATH || path.join(__dirname, '../../private/news-images'));
+
+const getNewsImage = (req, res, next) => {
+  const key = String(req.params.key || '');
+  if (!/^[0-9a-f-]{36}\.(?:jpg|png|webp)$/i.test(key)) return res.status(404).json({ success: false, message: 'Image not found.' });
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('Cache-Control', 'public, max-age=31536000, immutable');
+  return res.sendFile(path.join(NEWS_IMAGE_STORAGE_DIR, key), (error) => {
+    if (error && !res.headersSent) {
+      if (error.code === 'ENOENT') return res.status(404).json({ success: false, message: 'Image not found.' });
+      return next(error);
+    }
+  });
+};
 
 const listPublishedEvents = async (req, res, next) => {
   try {
@@ -57,4 +73,4 @@ const getPublishedNewsArticle = async (req, res, next) => {
   } catch (error) { return next(error); }
 };
 
-module.exports = { listPublishedEvents, getPublishedEvent, listPublishedNews, getPublishedNewsArticle };
+module.exports = { listPublishedEvents, getPublishedEvent, listPublishedNews, getPublishedNewsArticle, getNewsImage };

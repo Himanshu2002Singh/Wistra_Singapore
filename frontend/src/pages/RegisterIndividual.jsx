@@ -12,7 +12,7 @@ const getSubmissionError = (error) => {
   const details = Object.values(error.response?.data?.errors || {}).filter((value) => typeof value === 'string')
   if (details.length) return details.join(' ')
   if (status === 401) return 'Your session has expired. Sign in again, then resubmit your application.'
-  if (status === 403) return 'This account is not allowed to submit a membership application.'
+  if (status === 403) return 'Membership applications must be submitted with a Member applicant account. Sign out of the administrator account and continue with a Member account.'
   if (status === 409) return error.response?.data?.message || 'An application is already in progress for this account.'
   if (status >= 500) return 'The registration service is temporarily unavailable. Please try again later.'
   if (!error.response && error.message && error.message !== 'Network Error' && !error.message.startsWith('Request failed with status code')) return error.message
@@ -42,7 +42,10 @@ export default function RegisterIndividual() {
   const [errorMessage, setErrorMessage] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
-  const { isAuthenticated, register, login } = useAuth()
+  const { isAuthenticated, isDemo, user, register, login, logout } = useAuth()
+  const roleName = user?.role?.name || user?.role_name || user?.role
+  const hasMemberSession = isAuthenticated && !isDemo && roleName === 'MEMBER'
+  const hasWrongRoleSession = isAuthenticated && !hasMemberSession
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -54,26 +57,37 @@ export default function RegisterIndividual() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (hasWrongRoleSession) {
+      setErrorMessage('This application must be linked to a Member account. Sign out of the administrator account, then continue with a Member account.')
+      return
+    }
     setErrorMessage('')
     setLoading(true)
 
     try {
       // Step 1: Create user account or authenticate if not logged in
       if (!isAuthenticated) {
+        let applicantUser
         try {
-          await register({
+          const registration = await register({
             email: formData.email,
             password: formData.password,
             first_name: formData.firstName,
             last_name: formData.lastName,
             phone: formData.mobileNumber,
           })
+          applicantUser = registration?.data?.user
         } catch (regErr) {
           if (regErr.response?.status === 409) {
-            await login(formData.email, formData.password)
+            applicantUser = await login(formData.email, formData.password)
           } else {
             throw regErr
           }
+        }
+
+        const applicantRole = applicantUser?.role?.name || applicantUser?.role_name || applicantUser?.role
+        if (applicantRole !== 'MEMBER') {
+          throw new Error('That email belongs to a non-member account. Sign in with or create a Member applicant account to submit this application.')
         }
       }
 
@@ -184,6 +198,13 @@ export default function RegisterIndividual() {
                 </div>
               )}
 
+              {hasWrongRoleSession && (
+                <div className="flex flex-col gap-3 rounded border border-[#e3bd66] bg-[#fff8e7] p-4 text-xs leading-relaxed text-[#553f13] sm:flex-row sm:items-center sm:justify-between" role="status">
+                  <span>You are signed in as {roleName === 'SUPER_ADMIN' || (typeof roleName === 'string' && roleName.endsWith('_ADMIN')) ? 'an administrator' : 'a non-member account'}. Membership applications require a Member account.</span>
+                  <button type="button" onClick={logout} className="shrink-0 font-bold text-[#0f2d52] underline underline-offset-2 hover:text-[#087f8c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f2d52]">Sign out to continue</button>
+                </div>
+              )}
+
               {/* SECTION 1: PERSONAL DETAILS */}
               <div className="space-y-6">
                 <h4 className="text-xs font-bold tracking-widest uppercase text-[#5ee5e9] border-b border-white/15 pb-2.5">
@@ -271,6 +292,11 @@ export default function RegisterIndividual() {
                       type="tel"
                       name="mobileNumber"
                       required
+                      autoComplete="tel"
+                      inputMode="tel"
+                      maxLength={20}
+                      pattern="(?=(?:\D*\d){7})\+?[0-9().\s-]{7,20}"
+                      title="Enter at least 7 digits; +, spaces, parentheses, hyphens, and periods are allowed."
                       value={formData.mobileNumber}
                       onChange={handleChange}
                       placeholder="+65 9123 4567"
@@ -377,15 +403,15 @@ export default function RegisterIndividual() {
                     onChange={handleChange}
                     className="mt-0.5 rounded accent-[var(--coral)] w-4 h-4"
                   />
-                  <span>Follow us on LinkedIn and Instagram for community updates and event announcements.</span>
+                  <span>Follow WISTA Singapore on Instagram and LinkedIn, and WISTA International on Facebook, X, and YouTube for community updates and event announcements.</span>
                 </label>
               </div>
 
               {/* SUBMIT BUTTON */}
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full py-4 bg-[var(--coral)] hover:bg-[#f27663] text-white font-bold tracking-widest uppercase text-xs rounded transition flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+                disabled={loading || hasWrongRoleSession}
+                className="w-full py-4 bg-[var(--coral)] hover:bg-[#f27663] text-white font-bold tracking-widest uppercase text-xs rounded transition flex items-center justify-center gap-2 shadow-lg cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? 'Submitting Application...' : <>Submit Individual Application <ArrowUpRight size={16} /></>}
               </button>

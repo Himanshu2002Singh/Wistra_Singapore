@@ -119,6 +119,8 @@ export default function Dashboard() {
   const paymentCurrency = latestPayment?.invoice?.currency || latestPayment?.currency || 'SGD';
   const activityLabel = (item) => {
     if (!item.oldStatus && item.type === 'application' && item.newStatus === 'PENDING') return 'Application submitted';
+    if (item.newStatus === 'CLARIFICATION_REQUIRED') return 'Clarification requested';
+    if (item.oldStatus === 'CLARIFICATION_REQUIRED' && item.newStatus === 'PENDING') return 'Clarification response resubmitted';
     const subject = item.type === 'application' ? 'Application' : 'Membership';
     return `${subject} status changed${item.oldStatus ? ` from ${item.oldStatus.replaceAll('_', ' ')}` : ''} to ${item.newStatus.replaceAll('_', ' ')}`;
   };
@@ -189,6 +191,18 @@ export default function Dashboard() {
             </div>
           </section>
 
+          {latestApplication?.status === 'CLARIFICATION_REQUIRED' && (
+            <section className="rounded-xl border border-amber-500/40 bg-amber-50 p-5 text-amber-950 shadow-sm" role="alert" aria-labelledby="clarification-alert-heading">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 id="clarification-alert-heading" className="text-sm font-bold">Action needed: application clarification</h2>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-amber-900">{latestApplication.review_remarks || 'The review team has requested changes to your application.'}</p>
+                </div>
+                <Link to={`/member/applications/${latestApplication.id}/clarification`} className="inline-flex shrink-0 items-center justify-center gap-2 rounded bg-[var(--coral)] px-4 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#f27663]">Edit and resubmit <ArrowUpRight size={15} /></Link>
+              </div>
+            </section>
+          )}
+
           <section aria-labelledby="member-activity-heading" className="bg-[#071626] border border-white/10 rounded-xl p-6 shadow-xl">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4 mb-4">
               <div>
@@ -207,8 +221,8 @@ export default function Dashboard() {
               <>
                 <ol className="divide-y divide-white/10">
                   {activity.map((item) => (
-                    <li key={item.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                      <span className="text-sm text-white">{activityLabel(item)}</span>
+                    <li key={item.id} className="py-3 flex flex-col sm:flex-row sm:items-start justify-between gap-1.5">
+                      <div><span className="text-sm text-white">{activityLabel(item)}</span>{item.reason && <p className="mt-1 max-w-3xl whitespace-pre-wrap text-xs leading-relaxed text-slate-400">{item.reason}</p>}</div>
                       <time className="text-xs text-slate-400 shrink-0" dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
                     </li>
                   ))}

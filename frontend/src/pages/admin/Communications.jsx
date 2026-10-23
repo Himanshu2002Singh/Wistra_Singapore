@@ -3,7 +3,7 @@ import { Newspaper, Plus, X, Pencil, Trash2, Eye, EyeOff } from 'lucide-react'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { useAuth } from '@/context/AuthContext'
 import {
-  createAdminNewsApi, deleteAdminNewsApi, getAdminNewsApi,
+  createAdminNewsApi, deleteAdminNewsApi, getAdminNewsApi, resolveNewsImageUrl, uploadAdminNewsImageApi,
   setAdminNewsPublicationApi, updateAdminNewsApi,
 } from '@/services/adminContentService'
 
@@ -30,6 +30,8 @@ export default function Communications() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [imageUploading, setImageUploading] = useState(false)
+  const [imagePreview, setImagePreview] = useState('')
   const [pendingId, setPendingId] = useState(null)
   const [form, setForm] = useState(initialForm)
 
@@ -50,18 +52,73 @@ export default function Communications() {
     return () => { active = false }
   }, [])
 
-  const openCreate = () => { setEditing(null); setForm(initialForm); setError(''); setOpen(true) }
+  useEffect(() => {
+    if (!open) return undefined
+    const root = document.documentElement
+    const adminContent = document.querySelector('.admin-main-content')
+    const previousOverflow = document.body.style.overflow
+    const previousRootOverflow = root.style.overflow
+    const previousAdminContentOverflow = adminContent?.style.overflowY
+    document.body.style.overflow = 'hidden'
+    root.style.overflow = 'hidden'
+    if (adminContent) adminContent.style.overflowY = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+      root.style.overflow = previousRootOverflow
+      if (adminContent) adminContent.style.overflowY = previousAdminContentOverflow
+    }
+  }, [open])
+
+  const openCreate = () => { setEditing(null); setForm(initialForm); setImagePreview(''); setError(''); setOpen(true) }
   const openEdit = (article) => {
     setEditing(article)
     setForm(Object.fromEntries(fields.map((field) => [field, article[field] || ''])))
+    setImagePreview(resolveNewsImageUrl(article.image_url))
     setError(''); setOpen(true)
+  }
+
+  const uploadImage = async (event) => {
+    const input = event.currentTarget
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('Choose a JPEG, PNG, or WebP image.')
+      input.value = ''
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image files must be 5 MB or smaller.')
+      input.value = ''
+      return
+    }
+
+    const previewUrl = URL.createObjectURL(file)
+    setImagePreview(previewUrl)
+    setImageUploading(true)
+    setError('')
+    try {
+      const result = await uploadAdminNewsImageApi(file)
+      const imageUrl = result?.data?.image_url
+      if (!imageUrl) throw new Error('The image upload did not return an image URL.')
+      setForm((current) => ({ ...current, image_url: imageUrl }))
+      // Keep the local preview visible immediately; the saved article uses the
+      // persistent API URL stored in image_url.
+      setImagePreview(previewUrl)
+    } catch (err) {
+      setError(messageFrom(err, 'The image could not be uploaded.'))
+      setForm((current) => ({ ...current, image_url: '' }))
+      setImagePreview('')
+      input.value = ''
+    } finally {
+      setImageUploading(false)
+    }
   }
 
   const submit = async (event) => {
     event.preventDefault()
     if (saving) return
     setSaving(true); setError(''); setNotice('')
-    const data = { ...form, image_url: form.image_url.trim() || null }
+    const data = { ...form, image_url: form.image_url || null }
     try {
       const result = editing
         ? await updateAdminNewsApi(editing.id, Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'status')))
@@ -109,7 +166,7 @@ export default function Communications() {
       </div></td>}</tr>) : <tr><td colSpan={hasActions ? 6 : 5} className="admin-sample-empty"><Newspaper size={23} /><h2>No news articles have been added</h2><p>Create an article to start the news archive.</p></td></tr>}
     </tbody></table></div>
     {!canCreate && <p className="admin-content-help">Your role can view news but cannot create articles.</p>}
-    {open && <div className="admin-sample-modal" role="dialog" aria-modal="true" aria-labelledby="news-form-title"><div><button type="button" className="admin-sample-modal-close" onClick={() => !saving && setOpen(false)} aria-label="Close form" disabled={saving}><X size={18} /></button><p className="admin-kicker"><span /> News desk</p><h2 id="news-form-title">{editing ? 'Edit News Article' : 'Add News Article'}</h2>
+    {open && <div className="admin-sample-modal admin-news-modal" role="dialog" aria-modal="true" aria-labelledby="news-form-title"><div><button type="button" className="admin-sample-modal-close" onClick={() => !saving && setOpen(false)} aria-label="Close form" disabled={saving}><X size={18} /></button><p className="admin-kicker"><span /> News desk</p><h2 id="news-form-title">{editing ? 'Edit News Article' : 'Add News Article'}</h2>
       {error && <div className="admin-payment-error" role="alert">{error}</div>}
       <form className="admin-content-form" onSubmit={submit}>
         <label>Headline<input required maxLength={180} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>
@@ -117,10 +174,11 @@ export default function Communications() {
         <label>Article content<textarea required maxLength={30000} rows="7" value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} /></label>
         <label>Category<input required maxLength={80} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Events, Insights, Milestone…" /></label>
         <label>Author or byline<input required maxLength={150} value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} /></label>
-        <label>Image URL <span>(optional; HTTP or HTTPS)</span><input type="url" maxLength={2048} value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} /></label>
+        <label>Image file <span>(optional; JPEG, PNG, or WebP, up to 5 MB)</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadImage} disabled={imageUploading || saving} /></label>
+        {imagePreview && <div className="admin-news-image-preview"><span>Image preview</span><img src={imagePreview} alt="News article preview" />{imageUploading && <small role="status">Uploading image…</small>}</div>}
         {!editing && canPublish && <label>Visibility<select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option></select></label>}
         {!editing && !canPublish && <p className="admin-content-help">New articles are saved as drafts. A user with publish permission can publish them.</p>}
-        <div className="admin-sample-modal-actions"><button type="button" onClick={() => setOpen(false)} disabled={saving}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : editing ? 'Save Changes' : 'Save Article'}</button></div>
+        <div className="admin-sample-modal-actions"><button type="button" onClick={() => setOpen(false)} disabled={saving || imageUploading}>Cancel</button><button type="submit" disabled={saving || imageUploading}>{saving ? 'Saving…' : imageUploading ? 'Uploading image…' : editing ? 'Save Changes' : 'Save Article'}</button></div>
       </form>
     </div></div>}
   </div></AdminLayout>

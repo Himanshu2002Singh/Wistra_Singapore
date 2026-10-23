@@ -5,6 +5,7 @@ import PageIntro from '@/components/editorial/PageIntro'
 import Lightbox from '@/components/ui/Lightbox'
 import ScrollReveal from '@/components/ui/ScrollReveal'
 import { getPublishedNewsApi } from '@/services/publicContentService'
+import { resolveNewsImageUrl } from '@/services/adminContentService'
 
 // Exclusive Curated Hero Background Image for News
 import newsHeroBg from '../assets/images/wista/client-provided/wista-news-hero-community.jpg'
@@ -34,7 +35,7 @@ export default function News() {
           excerpt: article.excerpt,
           date: article.published_at ? new Intl.DateTimeFormat('en-SG', { dateStyle: 'medium', timeZone: 'Asia/Singapore' }).format(new Date(article.published_at)) : '—',
           category: article.category,
-          image: article.image_url || newsImages[index % newsImages.length],
+          image: resolveNewsImageUrl(article.image_url) || newsImages[index % newsImages.length],
           author: article.author,
         }))
         setNewsState({ articles, loading: false, error: false })

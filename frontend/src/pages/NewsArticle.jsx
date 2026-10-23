@@ -4,6 +4,7 @@ import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
 import ScrollReveal from '@/components/ui/ScrollReveal'
 import { getPublishedNewsArticleApi } from '@/services/publicContentService'
+import { resolveNewsImageUrl } from '@/services/adminContentService'
 import newsHeroBg from '../assets/images/wista/client-provided/wista-news-hero-community.jpg'
 
 const publishedDate = (value) => value
@@ -38,7 +39,7 @@ export default function NewsArticle() {
           eyebrow={`${article.category || 'NEWS'} — ${publishedDate(article.published_at)}`}
           title={<>{article.title}</>}
           lead={article.excerpt}
-          bgImage={article.image_url || newsHeroBg}
+          bgImage={resolveNewsImageUrl(article.image_url) || newsHeroBg}
           bgPosition="center 30%"
           variant="framed"
         />

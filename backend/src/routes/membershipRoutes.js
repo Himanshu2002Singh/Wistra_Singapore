@@ -8,13 +8,14 @@ const {
   submitApplication,
   getMyApplications,
   getMyApplicationById,
+  resubmitApplicationClarification,
 } = require('../controllers/membershipApplicationController');
 
 const { getMyActivity, getMyMembership, updateMyProfile } = require('../controllers/memberPortalController');
 const { listMemberDirectory } = require('../controllers/memberDirectoryController');
 const requirePermission = require('../middleware/requirePermission');
 const { studentApplicationUpload } = require('../middleware/studentApplicationUpload');
-const { submitStudentApplication, getMyStudentApplication } = require('../controllers/studentApplicationController');
+const { submitStudentApplication, resubmitStudentApplicationClarification, getMyStudentApplication } = require('../controllers/studentApplicationController');
 const { listMyEventRegistrations, registerForEvent } = require('../controllers/eventRegistrationController');
 
 // Applicant routes
@@ -23,6 +24,8 @@ router.post('/applications/student', authenticateToken, requireRole('MEMBER', { 
 router.post('/applications', authenticateToken, requireRole('MEMBER', { allowSuperAdmin: false }), submitApplication);
 router.get('/applications/me', authenticateToken, requireRole('MEMBER', { allowSuperAdmin: false }), getMyApplications);
 router.get('/applications/me/:id', authenticateToken, requireRole('MEMBER', { allowSuperAdmin: false }), getMyApplicationById);
+router.patch('/applications/me/:id/clarification', authenticateToken, requireRole('MEMBER', { allowSuperAdmin: false }), resubmitApplicationClarification);
+router.patch('/applications/student/:id/clarification', authenticateToken, requireRole('MEMBER', { allowSuperAdmin: false }), studentApplicationUpload, resubmitStudentApplicationClarification);
 router.get('/events/registrations/me', authenticateToken, requireRole('MEMBER', { allowSuperAdmin: false }), listMyEventRegistrations);
 router.post('/events/:eventId/registrations', authenticateToken, requireRole('MEMBER', { allowSuperAdmin: false }), registerForEvent);
 

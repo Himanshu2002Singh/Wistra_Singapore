@@ -126,7 +126,9 @@ const validateApplicationBody = (body) => {
 const ALLOWED_TRANSITIONS = {
   PENDING: ['UNDER_REVIEW'],
   UNDER_REVIEW: ['PAYMENT_PENDING', 'CLARIFICATION_REQUIRED', 'REJECTED'],
-  CLARIFICATION_REQUIRED: ['UNDER_REVIEW'],
+  // A clarification request must be answered by the applicant before an admin
+  // can review the application again. Resubmission moves it back to PENDING.
+  CLARIFICATION_REQUIRED: ['PENDING'],
   PAYMENT_PENDING: [], // Locked until payment processing in later step
   REJECTED: [], // Terminal state
   APPROVED: [], // Terminal / Locked
@@ -148,6 +150,12 @@ const parseReviewRemarks = (body, required = false) => {
   const trimmed = value.trim();
   if (required && !trimmed) return { error: 'Review remarks are required.' };
   return { value: trimmed };
+};
+
+const parseClarificationResponse = (value) => {
+  if (typeof value !== 'string' || !value.trim()) return { error: 'Explain how you addressed the requested clarification.' };
+  if (value.trim().length > 4000) return { error: 'Your clarification response must be 4000 characters or fewer.' };
+  return { value: value.trim() };
 };
 
 
@@ -352,7 +360,10 @@ const getMyApplications = async (req, res, next) => {
     const applications = await MembershipApplication.findAll({
       where: { user_id: userId },
       order: [['created_at', 'DESC']],
-      include: [{ model: StudentProfile, as: 'studentProfile', attributes: { exclude: ['document_storage_key'] } }],
+      include: [
+        { model: StudentProfile, as: 'studentProfile', attributes: { exclude: ['document_storage_key'] } },
+        { model: User, as: 'applicant', attributes: ['id', 'email', 'first_name', 'last_name', 'phone'] },
+      ],
       attributes: [
         'id',
         'application_number',
@@ -399,7 +410,10 @@ const getMyApplicationById = async (req, res, next) => {
 
     const application = await MembershipApplication.findOne({
       where: { id, user_id: userId },
-      include: [{ model: StudentProfile, as: 'studentProfile', attributes: { exclude: ['document_storage_key'] } }],
+      include: [
+        { model: StudentProfile, as: 'studentProfile', attributes: { exclude: ['document_storage_key'] } },
+        { model: User, as: 'applicant', attributes: ['id', 'email', 'first_name', 'last_name', 'phone'] },
+      ],
       attributes: [
         'id',
         'application_number',
@@ -421,11 +435,133 @@ const getMyApplicationById = async (req, res, next) => {
       });
     }
 
+    const profiles = {
+      individual: await IndividualProfile.findOne({ where: { user_id: userId } }),
+      corporate: await CorporateProfile.findOne({
+        where: { user_id: userId },
+        include: [{ model: CorporateRepresentative, as: 'representatives' }],
+      }),
+    };
+
     return res.json({
       success: true,
-      data: application,
+      data: { ...application.toJSON(), profiles },
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+/** Member resubmission after an administrator requests clarification. */
+const resubmitApplicationClarification = async (req, res, next) => {
+  let transaction;
+  try {
+    const response = parseClarificationResponse(req.body?.clarification_response);
+    if (response.error) return res.status(400).json({ success: false, message: response.error, errors: { clarification_response: response.error } });
+
+    const { clarification_response, ...applicationBody } = req.body || {};
+    const validation = validateApplicationBody(applicationBody);
+    if (validation.errors) return res.status(400).json({ success: false, message: 'Check the highlighted application fields.', errors: validation.errors });
+    const data = validation.data;
+
+    transaction = await sequelize.transaction();
+    const application = await MembershipApplication.findOne({
+      where: { id: req.params.id, user_id: req.user.id },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!application) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Application not found.' });
+    }
+    if (application.status !== 'CLARIFICATION_REQUIRED') {
+      await transaction.rollback();
+      return res.status(409).json({ success: false, message: 'This application is not waiting for clarification.' });
+    }
+    if (data.membership_type !== application.membership_type || data.membership_type === 'STUDENT') {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: 'The application type cannot be changed.' });
+    }
+
+    const applicant = await User.findByPk(req.user.id, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!applicant) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Applicant account was not found.' });
+    }
+
+    if (data.membership_type === 'INDIVIDUAL') {
+      applicant.phone = data.phone;
+      await applicant.save({ transaction });
+      await IndividualProfile.upsert({
+        user_id: req.user.id,
+        company: data.company || null,
+        designation: data.designation || null,
+        biography: data.biography || null,
+        linkedin_url: data.linkedin_url || null,
+        photo_url: data.photo_url || null,
+        nationality: data.nationality || null,
+        date_of_birth: data.date_of_birth || null,
+        invoicing_address: data.invoicing_address || null,
+      }, { transaction });
+    } else {
+      let corporateProfile = await CorporateProfile.findOne({ where: { user_id: req.user.id }, transaction, lock: transaction.LOCK.UPDATE });
+      const corporateData = {
+        user_id: req.user.id,
+        company_name: data.company_name,
+        company_description: data.company_description,
+        industry_main_category: data.industry_main_category,
+        industry_sub_category: data.industry_sub_category,
+        address: data.invoicing_address,
+        invoicing_contact_person: data.invoicing_contact_person,
+        contact_email: data.invoicing_email,
+        contact_phone: data.contact_phone || applicant.phone,
+        main_contacts: data.main_contacts,
+        additional_contacts: data.additional_contacts,
+      };
+      if (corporateProfile) await corporateProfile.update(corporateData, { transaction });
+      else corporateProfile = await CorporateProfile.create(corporateData, { transaction });
+
+      await CorporateRepresentative.destroy({ where: { corporate_profile_id: corporateProfile.id }, transaction });
+      if (Array.isArray(data.representatives) && data.representatives.length) {
+        await CorporateRepresentative.bulkCreate(data.representatives.map((representative) => ({
+          corporate_profile_id: corporateProfile.id,
+          name: representative.name.trim(),
+          email: representative.email?.trim() || null,
+          phone: representative.phone?.trim() || null,
+          designation: representative.designation?.trim() || null,
+          is_primary: Boolean(representative.is_primary),
+          status: 'ACTIVE',
+        })), { transaction });
+      }
+    }
+
+    application.status = 'PENDING';
+    application.submitted_at = new Date();
+    application.reviewed_at = null;
+    application.reviewed_by = null;
+    await application.save({ transaction });
+    await MembershipStatusHistory.create({
+      application_id: application.id,
+      old_status: 'CLARIFICATION_REQUIRED',
+      new_status: 'PENDING',
+      changed_by: req.user.id,
+      reason: `Applicant clarification response: ${response.value}`,
+    }, { transaction });
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'APPLICATION_CLARIFICATION_RESUBMITTED',
+      module: 'MEMBERSHIP',
+      entity_type: 'MembershipApplication',
+      entity_id: String(application.id),
+      old_values: { status: 'CLARIFICATION_REQUIRED' },
+      new_values: { status: 'PENDING', clarification_response: response.value },
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent'),
+    }, { transaction });
+    await transaction.commit();
+    return res.json({ success: true, message: 'Your updated application has been resubmitted for review.', data: { id: application.id, status: application.status } });
+  } catch (error) {
+    if (transaction && !transaction.finished) await transaction.rollback();
     next(error);
   }
 };
@@ -877,6 +1013,7 @@ module.exports = {
   submitApplication,
   getMyApplications,
   getMyApplicationById,
+  resubmitApplicationClarification,
   getAdminApplications,
   getAdminApplicationById,
   reviewApplication,

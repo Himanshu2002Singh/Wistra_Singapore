@@ -44,7 +44,7 @@ export default function Footer() {
           <img src="/wista-logo-singapore-white.svg" alt="WISTA Singapore" />
         </div>
 
-        <div className="footer-socials" role="group" aria-label="WISTA Singapore social media">
+        <div className="footer-socials" role="group" aria-label="WISTA social media">
           {socialLinks.map(({ platform, label, url }) => {
             const icon = <FooterSocialIcon platform={platform} />
             return url ? (

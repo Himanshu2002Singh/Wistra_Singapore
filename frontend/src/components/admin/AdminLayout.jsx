@@ -1,30 +1,35 @@
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BarChart3, CalendarDays, ChevronDown, FileText, LayoutDashboard, LogOut, Menu, Newspaper, ShieldCheck, Users, WalletCards, X } from 'lucide-react'
+import { ArrowLeft, CalendarDays, ChevronDown, FileText, LayoutDashboard, LogOut, Menu, Newspaper, ShieldCheck, Users, WalletCards, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { hasModulePermission } from '@/config/adminAccess'
+import { getAdminApplicationsApi } from '@/services/membershipService'
+import { getAdminMembershipsApi } from '@/services/memberService'
+import { getAdminPaymentsApi } from '@/services/paymentService'
+import { getAdminEventsApi, getAdminNewsApi } from '@/services/adminContentService'
+import { getAdminUsersApi } from '@/services/adminUserAccessService'
 
 const navigation = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/admin/applications', label: 'Applications', module: 'Applications', icon: FileText },
-  { to: '/admin/members', label: 'Memberships', module: 'Members', icon: Users },
-  { to: '/admin/payments', label: 'Payments', module: 'Payments', icon: WalletCards },
-  { to: '/admin/events', label: 'Events', module: 'Events', icon: CalendarDays },
-  { to: '/admin/news', label: 'News', module: 'News', icon: Newspaper },
-  { to: '/admin/reports', label: 'Reports', module: 'Reports', icon: BarChart3 },
-  { to: '/admin/users', label: 'Team and Roles', module: 'Users & Roles', icon: ShieldCheck },
+  { to: '/admin/applications', label: 'Applications', module: 'Applications', icon: FileText, notificationKey: 'applications' },
+  { to: '/admin/members', label: 'Memberships', module: 'Members', icon: Users, notificationKey: 'memberships' },
+  { to: '/admin/payments', label: 'Payments', module: 'Payments', icon: WalletCards, notificationKey: 'payments' },
+  { to: '/admin/events', label: 'Events', module: 'Events', icon: CalendarDays, notificationKey: 'events' },
+  { to: '/admin/news', label: 'News', module: 'News', icon: Newspaper, notificationKey: 'news' },
+  { to: '/admin/users', label: 'Team and Roles', module: 'Users & Roles', icon: ShieldCheck, notificationKey: 'team' },
   { to: '/admin/audit-logs', label: 'Audit Logs', module: 'Audit Logs', icon: ShieldCheck },
 ]
 
 const pageNames = {
   '/admin': 'Dashboard', '/admin/dashboard': 'Dashboard', '/admin/applications': 'Applications',
   '/admin/members': 'Memberships', '/admin/payments': 'Payments', '/admin/events': 'Events',
-  '/admin/news': 'News', '/admin/communications': 'News', '/admin/reports': 'Reports', '/admin/users': 'Team and Roles', '/admin/audit-logs': 'Audit Logs',
+  '/admin/news': 'News', '/admin/communications': 'News', '/admin/users': 'Team and Roles', '/admin/audit-logs': 'Audit Logs',
 }
 
 export default function AdminLayout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [notifications, setNotifications] = useState({})
   const { user, logout, isDemo } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -35,6 +40,43 @@ export default function AdminLayout({ children }) {
   const handleLogout = async () => { await logout(); navigate('/admin', { replace: true }) }
   const closeMobileMenu = () => setMobileMenuOpen(false)
   const visibleNavigation = navigation.filter(({ module }) => !module || hasModulePermission(user, module))
+
+  const loadSidebarNotifications = useCallback(async () => {
+    if (isDemo) {
+      setNotifications({})
+      return
+    }
+
+    const jobs = []
+    const canView = (module) => hasModulePermission(user, module)
+    if (canView('Applications')) jobs.push(['applications', getAdminApplicationsApi({ status: 'PENDING', page: 1, limit: 1 }).then((result) => Number(result?.data?.total) || 0)])
+    if (canView('Members')) jobs.push(['memberships', getAdminMembershipsApi({ status: 'PENDING', page: 1, limit: 1 }).then((result) => Number(result?.data?.total) || 0)])
+    if (canView('Payments')) jobs.push(['payments', Promise.all([
+      getAdminPaymentsApi({ status: 'SUBMITTED', page: 1, limit: 1 }),
+      getAdminPaymentsApi({ status: 'UNDER_VERIFICATION', page: 1, limit: 1 }),
+    ]).then((results) => results.reduce((sum, result) => sum + (Number(result?.data?.total) || 0), 0))])
+    if (canView('Events')) jobs.push(['events', getAdminEventsApi().then((result) => (result?.data || []).filter((event) => event.status === 'DRAFT').length)])
+    if (canView('News')) jobs.push(['news', getAdminNewsApi().then((result) => (result?.data || []).filter((article) => article.status === 'DRAFT').length)])
+    if (canView('Users & Roles')) jobs.push(['team', getAdminUsersApi({ status: 'INACTIVE', page: 1, limit: 1 }).then((result) => Number(result?.data?.total) || 0)])
+    const results = await Promise.allSettled(jobs.map(([, request]) => request))
+    setNotifications((current) => {
+      const next = { ...current }
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') next[jobs[index][0]] = result.value
+      })
+      return next
+    })
+  }, [isDemo, user])
+
+  useEffect(() => {
+    loadSidebarNotifications()
+    const interval = window.setInterval(loadSidebarNotifications, 60_000)
+    window.addEventListener('focus', loadSidebarNotifications)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', loadSidebarNotifications)
+    }
+  }, [loadSidebarNotifications])
 
   return (
     <div className="wista-admin-shell">
@@ -60,7 +102,23 @@ export default function AdminLayout({ children }) {
         <aside className={`admin-sidebar ${mobileMenuOpen ? 'is-open' : ''}`} aria-label="Admin navigation">
           <nav className="admin-navigation">
             <p className="admin-nav-label">Operations</p>
-            {visibleNavigation.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} onClick={closeMobileMenu} className={({ isActive }) => `admin-nav-link${isActive ? ' is-active' : ''}`}><Icon size={18} aria-hidden="true" /><span>{label}</span></NavLink>)}
+            {visibleNavigation.map(({ to, label, icon: Icon, notificationKey }) => {
+              const count = notificationKey ? notifications[notificationKey] || 0 : 0
+              const hasNotifications = count > 0
+              return (
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={closeMobileMenu}
+                  aria-label={hasNotifications ? `${label}, ${count} notifications` : undefined}
+                  className={({ isActive }) => `admin-nav-link${isActive ? ' is-active' : ''}`}
+                >
+                  <Icon size={18} aria-hidden="true" />
+                  <span>{label}</span>
+                  {hasNotifications && <span className="admin-nav-badge" aria-hidden="true">{count > 99 ? '99+' : count}</span>}
+                </NavLink>
+              )
+            })}
           </nav>
           <div className="admin-sidebar-bottom">
             <Link to="/" className="admin-nav-link"><ArrowLeft size={17} aria-hidden="true" /><span>Public Website</span></Link>

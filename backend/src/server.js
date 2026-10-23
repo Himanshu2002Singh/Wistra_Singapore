@@ -10,7 +10,7 @@ if (process.env.NODE_ENV !== 'production' && !process.env.STUDENT_MEMBERSHIP_FEE
 
 const validateProductionEnvironment = () => {
   if (process.env.NODE_ENV !== 'production') return;
-  const required = ['CLIENT_URL', 'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'JWT_SECRET', 'STUDENT_DOCUMENT_STORAGE_PATH'];
+  const required = ['CLIENT_URL', 'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'JWT_SECRET', 'STUDENT_DOCUMENT_STORAGE_PATH', 'NEWS_IMAGE_STORAGE_PATH'];
   const missing = required.filter((name) => !process.env[name]?.trim());
   if (missing.length) throw new Error(`Missing required production environment variables: ${missing.join(', ')}`);
 
@@ -21,6 +21,9 @@ const validateProductionEnvironment = () => {
   if (invalidOrigins.length) throw new Error('CLIENT_URL must contain only HTTPS origins, separated by commas.');
   if (!require('node:path').isAbsolute(process.env.STUDENT_DOCUMENT_STORAGE_PATH)) {
     throw new Error('STUDENT_DOCUMENT_STORAGE_PATH must be an absolute private persistent storage path in production.');
+  }
+  if (!require('node:path').isAbsolute(process.env.NEWS_IMAGE_STORAGE_PATH)) {
+    throw new Error('NEWS_IMAGE_STORAGE_PATH must be an absolute persistent storage path in production.');
   }
   if (process.env.JWT_SECRET.length < 32 || /^(change[-_ ]?me|your[-_ ]|secret$)/i.test(process.env.JWT_SECRET)) {
     throw new Error('JWT_SECRET must be a non-placeholder value with at least 32 characters.');

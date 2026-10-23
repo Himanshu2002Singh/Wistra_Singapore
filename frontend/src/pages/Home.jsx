@@ -99,7 +99,7 @@ function HeroMotion() {
           </nav>
         </div>
       </div>
-      <div className="homepage-hero-socials" role="group" aria-label="WISTA Singapore social media">
+      <div className="homepage-hero-socials" role="group" aria-label="WISTA social media">
         {socialLinks.map(({ platform, label, url }) => {
           const icon = <SocialIcon platform={platform} />
           return url ? (

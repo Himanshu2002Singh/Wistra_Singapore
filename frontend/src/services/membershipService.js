@@ -34,6 +34,18 @@ export const getMyApplicationByIdApi = async (id) => {
   return response.data
 }
 
+export const resubmitApplicationClarificationApi = async (id, data) => {
+  const response = await api.patch(`/membership/applications/me/${id}/clarification`, data)
+  return response.data
+}
+
+export const resubmitStudentClarificationApi = async (id, data) => {
+  const response = await api.patch(`/membership/applications/student/${id}/clarification`, data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data
+}
+
 export const getAdminApplicationsApi = async (params) => {
   const response = await api.get('/admin/applications', { params })
   return response.data

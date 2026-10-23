@@ -112,8 +112,8 @@ export default function Membership() {
               <div className="membership-path-copy">
                 <p className="eyebrow">STUDENT MEMBERSHIP</p>
                 <h3>For students</h3>
-                <p>Student membership application details are being confirmed with WISTA Singapore.</p>
-                <Link className="editorial-link" to="/register/student">Student application details <span aria-hidden="true">↗</span></Link>
+                <p>Student membership is SGD 50 per year. Apply online with your education details and proof of current enrollment; applications are reviewed by WISTA Singapore.</p>
+                <Link className="editorial-link" to="/register/student">Apply for student membership <span aria-hidden="true">↗</span></Link>
               </div>
             </article>
           </div>

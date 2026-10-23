@@ -229,6 +229,11 @@ const Profile = () => {
                   <input 
                     type="tel" 
                     name="phone" 
+                    autoComplete="tel"
+                    inputMode="tel"
+                    maxLength={20}
+                    pattern="(?=(?:\D*\d){7})\+?[0-9().\s-]{7,20}"
+                    title="Enter at least 7 digits; +, spaces, parentheses, hyphens, and periods are allowed."
                     value={formData.phone} 
                     onChange={handleChange} 
                     className="w-full px-4 py-3 bg-[#071626] border border-white/20 rounded-md text-white focus:border-[#5ee5e9] focus:outline-none transition"

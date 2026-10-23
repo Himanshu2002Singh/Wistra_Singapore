@@ -6,10 +6,10 @@
 const FEE_STRUCTURE = {
   INDIVIDUAL: 150.00,
   CORPORATE: 500.00,
-  // Student pricing is supplied by Finance through environment configuration.
-  ...(Number.isFinite(Number(process.env.STUDENT_MEMBERSHIP_FEE)) && Number(process.env.STUDENT_MEMBERSHIP_FEE) > 0
-    ? { STUDENT: Number(process.env.STUDENT_MEMBERSHIP_FEE) }
-    : {}),
+  // Use SGD 50 as the initial Student fee; deployments can override it through Finance configuration.
+  STUDENT: Number.isFinite(Number(process.env.STUDENT_MEMBERSHIP_FEE)) && Number(process.env.STUDENT_MEMBERSHIP_FEE) > 0
+    ? Number(process.env.STUDENT_MEMBERSHIP_FEE)
+    : 50.00,
 };
 
 /**
@@ -25,8 +25,8 @@ const FEE_STRUCTURE = {
 const calculateMembershipFee = ({ membershipType, discount = 0, isComplimentary = false }) => {
   const typeKey = String(membershipType).toUpperCase();
   if (!Object.hasOwn(FEE_STRUCTURE, typeKey)) {
-    const error = new Error(typeKey === 'STUDENT' ? 'Student membership fee is not configured. Contact Finance before invoicing.' : `Invalid membership type: ${membershipType}`);
-    error.statusCode = typeKey === 'STUDENT' ? 409 : 400;
+    const error = new Error(`Invalid membership type: ${membershipType}`);
+    error.statusCode = 400;
     throw error;
   }
 

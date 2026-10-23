@@ -321,7 +321,7 @@ export default function Users() {
         </>}
         <label htmlFor="team-member-email">Email address<input id="team-member-email" type="email" required maxLength={255} autoComplete="email" value={memberEmail} onChange={(event) => setMemberEmail(event.target.value)} placeholder="name@example.com" /></label>
         {memberMode === 'create' && <>
-          <label htmlFor="team-member-phone">Phone number <span>(optional)</span><input id="team-member-phone" type="tel" maxLength={20} autoComplete="tel" value={memberPhone} onChange={(event) => setMemberPhone(event.target.value)} /></label>
+          <label htmlFor="team-member-phone">Phone number <span>(optional)</span><input id="team-member-phone" type="tel" maxLength={20} autoComplete="tel" inputMode="tel" pattern="(?=(?:\D*\d){7})\+?[0-9().\s-]{7,20}" title="Enter at least 7 digits; +, spaces, parentheses, hyphens, and periods are allowed." value={memberPhone} onChange={(event) => setMemberPhone(event.target.value)} /></label>
           <label htmlFor="team-member-password">Create password<input id="team-member-password" type="password" required minLength={8} autoComplete="new-password" value={memberPassword} onChange={(event) => setMemberPassword(event.target.value)} /></label>
           <label htmlFor="team-member-password-confirm">Confirm password<input id="team-member-password-confirm" type="password" required minLength={8} autoComplete="new-password" value={memberPasswordConfirm} onChange={(event) => setMemberPasswordConfirm(event.target.value)} /></label>
         </>}

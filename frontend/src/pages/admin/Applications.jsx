@@ -177,7 +177,9 @@ export default function Applications() {
   const application = detail?.application
   // The backend remains authoritative and rejects invalid state transitions.
   const isActionable = application && ['PENDING', 'UNDER_REVIEW', 'CLARIFICATION_REQUIRED'].includes(application.status)
-  const canMoveToReview = canReview && ['PENDING', 'CLARIFICATION_REQUIRED'].includes(application?.status)
+  // Keep the Review action unavailable while waiting for the applicant's
+  // clarification response. Member resubmission returns the application to PENDING.
+  const canMoveToReview = canReview && application?.status === 'PENDING'
   const canDecide = application?.status === 'UNDER_REVIEW'
   const downloadStudentDocument = async () => {
     if (!application || documentLoading) return
@@ -265,13 +267,18 @@ export default function Applications() {
           graduation_year: detail.profiles?.student?.graduation_year,
         }} />
         {detail.profiles?.student?.document_original_name && <section className="admin-application-detail-section"><h3>Proof of enrollment</h3><p>{detail.profiles.student.document_original_name} · {Math.ceil(detail.profiles.student.document_size / 1024)} KB</p><button type="button" onClick={downloadStudentDocument} disabled={documentLoading} className="admin-sample-view mt-3 inline-flex items-center gap-2"> <Download size={14} /> {documentLoading ? 'Downloading…' : 'Download document'}</button></section>}
-        {Array.isArray(detail.statusHistory) && detail.statusHistory.length > 0 && <section className="admin-application-detail-section"><h3>Status history</h3><ul className="admin-application-history">{detail.statusHistory.map((entry) => <li key={entry.id}><strong>{humanize(entry.old_status || 'NEW')} → {humanize(entry.new_status)}</strong><span>{dateValue(entry.created_at)}{entry.changedByUser ? ` · ${applicantName(entry.changedByUser)}` : ''}</span>{entry.reason && <p>{entry.reason}</p>}</li>)}</ul></section>}
+        {Array.isArray(detail.statusHistory) && detail.statusHistory.length > 0 && <section className="admin-application-detail-section"><h3>Status history</h3><ul className="admin-application-history">{detail.statusHistory.map((entry) => {
+          const responsePrefix = 'Applicant clarification response:'
+          const isApplicantResponse = entry.reason?.startsWith(responsePrefix)
+          return <li key={entry.id} className={isApplicantResponse ? 'admin-application-history-response' : undefined}><strong>{isApplicantResponse ? 'Applicant clarification response' : `${humanize(entry.old_status || 'NEW')} → ${humanize(entry.new_status)}`}</strong><span>{dateValue(entry.created_at)}{entry.changedByUser ? ` · ${applicantName(entry.changedByUser)}` : ''}</span>{entry.reason && <p>{isApplicantResponse ? entry.reason.slice(responsePrefix.length).trim() : entry.reason}</p>}</li>
+        })}</ul></section>}
         {notice && <div className="admin-sample-notice" role="status">{notice}</div>}
         {actionError && <div className="admin-application-error" role="alert">{actionError}</div>}
         {isActionable && <>
           {(canReject || canClarify) && <label className="admin-application-remarks">Review remarks<textarea value={remarks} onChange={(event) => setRemarks(event.target.value)} rows="3" maxLength="4000" placeholder="Add a reason for rejection or clarification request" disabled={actionLoading} /></label>}
           <div className="admin-sample-modal-actions">
             {canMoveToReview && <button type="button" onClick={() => runAction('review')} disabled={actionLoading}>{actionLoading ? 'Working…' : 'Review'}</button>}
+            {application?.status === 'CLARIFICATION_REQUIRED' && <p className="admin-application-state">Waiting for the applicant to respond. Review will be available after they resubmit.</p>}
             {canDecide && canReview && <button type="button" onClick={() => runAction('approve')} disabled={actionLoading}>{actionLoading ? 'Working…' : 'Approve'}</button>}
             {canDecide && canReject && <button type="button" onClick={() => runAction('reject')} disabled={actionLoading}>{actionLoading ? 'Working…' : 'Reject'}</button>}
             {canDecide && canClarify && <button type="button" onClick={() => runAction('clarification')} disabled={actionLoading}>{actionLoading ? 'Working…' : 'Request clarification'}</button>}

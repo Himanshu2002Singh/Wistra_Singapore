@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertCircle, ArrowLeft, ArrowUpRight, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
-import { submitStudentApplicationApi } from '@/services/membershipService'
+import { getMyStudentApplicationApi, submitStudentApplicationApi } from '@/services/membershipService'
 import { useAuth } from '@/context/AuthContext'
 import studentHero from '../assets/images/wista/membership/membership-reception.jpg'
 
@@ -50,6 +50,7 @@ export default function RegisterStudent() {
   const [showPassword, setShowPassword] = useState(false)
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
   const [submitted, setSubmitted] = useState(null)
+  const [checkingExisting, setCheckingExisting] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
   const submitLock = useRef(false)
@@ -58,6 +59,25 @@ export default function RegisterStudent() {
   const hasMemberSession = isAuthenticated && !isDemo && roleName === 'MEMBER'
   const needsMemberAccount = !isAuthenticated
   const hasWrongRoleSession = isAuthenticated && !hasMemberSession
+
+  useEffect(() => {
+    if (!hasMemberSession) return undefined
+
+    let active = true
+    setCheckingExisting(true)
+    getMyStudentApplicationApi()
+      .then((response) => {
+        if (active && response?.success && response.data?.application) setSubmitted(response.data.application)
+      })
+      .catch((lookupError) => {
+        if (active) setError(getErrorMessage(lookupError))
+      })
+      .finally(() => {
+        if (active) setCheckingExisting(false)
+      })
+
+    return () => { active = false }
+  }, [hasMemberSession])
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -127,7 +147,7 @@ export default function RegisterStudent() {
     <PageIntro
       eyebrow="MEMBERSHIP APPLICATION"
       title={<>Student <em>Membership.</em></>}
-      lead="Share your details and current proof of enrollment to apply for Student Membership."
+      lead="Share your education details and proof of current enrollment. Student membership is SGD 50 per year, payable after approval."
       bgImage={studentHero}
       variant="form"
     />
@@ -139,14 +159,22 @@ export default function RegisterStudent() {
           <span className="font-medium text-slate-300">WISTA Singapore Chapter</span>
         </div>
 
-        {submitted ? <div className="rounded-xl border border-[#5ee5e9] bg-[#0c243b] p-8 text-center shadow-2xl md:p-12" role="status">
+        {checkingExisting ? <div className="rounded-xl border border-white/15 bg-[#0c243b] p-8 text-center text-sm text-slate-200 shadow-2xl md:p-12" role="status">Checking your student application…</div> : submitted ? <div className="rounded-xl border border-[#5ee5e9] bg-[#0c243b] p-8 text-center shadow-2xl md:p-12" role="status">
           <CheckCircle2 size={56} className="mx-auto mb-6 text-[#5ee5e9]" />
-          <h2 className="mb-4 font-[var(--serif)] text-3xl text-white">Application Submitted</h2>
-          <p className="mx-auto mb-5 max-w-lg text-sm leading-relaxed text-slate-200">Thank you, <strong className="text-white">{formData.first_name} {formData.last_name}</strong>. Your Student Membership application has been received for review.</p>
-          <p className="mb-7 inline-block rounded border border-[#5ee5e9]/40 bg-[#5ee5e9]/10 px-4 py-2 font-mono text-xs font-bold text-[#5ee5e9]">Application #: {submitted.application_number}</p>
-          <p className="text-xs leading-relaxed text-slate-300">The WISTA Singapore Executive Committee will review your application.</p>
-          <p className="mt-4 text-xs leading-relaxed text-slate-300">Your account is ready. You can check your application status in the member portal.</p>
-          <Link to="/member" className="mt-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#5ee5e9] hover:text-white">Go to Dashboard <ArrowUpRight size={14} /></Link>
+          <h2 className="mb-4 font-[var(--serif)] text-3xl text-white">Student Application</h2>
+          <p className="mx-auto mb-5 max-w-lg text-sm leading-relaxed text-slate-200">Thank you, <strong className="text-white">{submitted.studentProfile?.first_name || formData.first_name} {submitted.studentProfile?.last_name || formData.last_name}</strong>. Your Student Membership application is being handled by WISTA Singapore.</p>
+          <p className="mb-4 inline-block rounded border border-[#5ee5e9]/40 bg-[#5ee5e9]/10 px-4 py-2 font-mono text-xs font-bold text-[#5ee5e9]">Application #: {submitted.application_number}</p>
+          <p className="mb-5 text-xs font-semibold uppercase tracking-wider text-slate-200">Status: {String(submitted.status || 'PENDING').replaceAll('_', ' ')}</p>
+          {submitted.review_remarks && <p className="mx-auto mb-5 max-w-lg rounded border border-white/10 bg-white/5 p-4 text-left text-xs leading-relaxed text-slate-200"><strong className="text-white">Review notes:</strong> {submitted.review_remarks}</p>}
+          {['PAYMENT_PENDING', 'APPROVED'].includes(submitted.status)
+            ? <p className="mx-auto mb-5 max-w-lg text-xs leading-relaxed text-slate-300">Your application is approved. The Student membership fee is SGD 50/year; view your invoice and payment options in the member portal.</p>
+            : submitted.status === 'REJECTED'
+              ? <p className="mx-auto mb-5 max-w-lg text-xs leading-relaxed text-slate-300">Your application was not approved. Contact WISTA Singapore if you need help with next steps.</p>
+              : <p className="mx-auto mb-5 max-w-lg text-xs leading-relaxed text-slate-300">The WISTA Singapore Executive Committee will review your application. The Student membership fee is SGD 50/year and is due after approval.</p>}
+          <div className="flex flex-wrap justify-center gap-5">
+            {['PAYMENT_PENDING', 'APPROVED'].includes(submitted.status) && <Link to="/member/payments" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#5ee5e9] hover:text-white">View invoice and payments <ArrowUpRight size={14} /></Link>}
+            <Link to="/member" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#5ee5e9] hover:text-white">Go to Dashboard <ArrowUpRight size={14} /></Link>
+          </div>
         </div> : <form onSubmit={handleSubmit} className="public-application-form bg-[#0c243b] border border-white/15 p-8 md:p-12 rounded-xl shadow-2xl space-y-10">
           <div className="border-b border-white/15 pb-5">
             <h3 className="font-[var(--serif)] text-3xl text-white font-normal mb-2 tracking-tight">Student Membership Application Form</h3>
@@ -154,7 +182,7 @@ export default function RegisterStudent() {
           </div>
 
           {hasMemberSession && <p className="text-xs leading-relaxed text-slate-300">This application will be linked to your signed-in account: <strong className="text-white">{user?.email}</strong>.</p>}
-          {hasWrongRoleSession && <div className="flex flex-col gap-3 rounded border border-amber-400/40 bg-amber-400/10 p-4 text-xs leading-relaxed text-amber-100 sm:flex-row sm:items-center sm:justify-between" role="status"><span>You are signed in as {roleName === 'SUPER_ADMIN' ? 'an administrator' : 'a non-member account'}. Student applications require a Member account.</span><button type="button" onClick={logout} className="shrink-0 font-bold underline underline-offset-2">Sign out to continue</button></div>}
+          {hasWrongRoleSession && <div className="flex flex-col gap-3 rounded border border-[#e3bd66] bg-[#fff8e7] p-4 text-xs leading-relaxed text-[#553f13] sm:flex-row sm:items-center sm:justify-between" role="status"><span>You are signed in as {roleName === 'SUPER_ADMIN' ? 'an administrator' : 'a non-member account'}. Student applications require a Member account.</span><button type="button" onClick={logout} className="shrink-0 font-bold text-[#0f2d52] underline underline-offset-2 hover:text-[#087f8c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f2d52]">Sign out to continue</button></div>}
           {error && <div className="p-4 bg-red-500/20 border border-red-500/50 rounded text-red-200 text-xs font-semibold flex items-center gap-2" role="alert"><AlertCircle size={16} className="text-red-400 shrink-0" /><span>{error}</span></div>}
 
           <div className="space-y-6">
@@ -163,7 +191,7 @@ export default function RegisterStudent() {
               <Field label="First name" name="first_name" autoComplete="given-name" value={formData.first_name} onChange={handleChange} />
               <Field label="Last name" name="last_name" autoComplete="family-name" value={formData.last_name} onChange={handleChange} />
               <Field label="Email address — for invoicing and communications" name="email" type="email" autoComplete="email" maxLength={255} value={formData.email} onChange={handleChange} />
-              <div><Field label="Mobile number — include country code" name="mobile_number" type="tel" autoComplete="tel" inputMode="tel" maxLength={30} value={formData.mobile_number} onChange={handleChange} aria-invalid={Boolean(fieldErrors.mobile_number)} aria-describedby={fieldErrors.mobile_number ? 'mobile-error' : undefined} />{fieldErrors.mobile_number && <p id="mobile-error" className="mt-1 text-xs text-red-300">{fieldErrors.mobile_number}</p>}</div>
+              <div><Field label="Mobile number — include country code" name="mobile_number" type="tel" autoComplete="tel" inputMode="tel" maxLength={30} pattern="(?=(?:\D*\d){7})\+?[0-9().\s-]{7,30}" title="Enter at least 7 digits; +, spaces, parentheses, hyphens, and periods are allowed." value={formData.mobile_number} onChange={handleChange} aria-invalid={Boolean(fieldErrors.mobile_number)} aria-describedby={fieldErrors.mobile_number ? 'mobile-error' : undefined} />{fieldErrors.mobile_number && <p id="mobile-error" className="mt-1 text-xs text-red-300">{fieldErrors.mobile_number}</p>}</div>
               <div className="form-group md:col-span-2"><label className={labelClass} htmlFor="invoicing_address">Invoicing address <span className="font-bold text-[#e85d4a]">*</span></label><textarea id="invoicing_address" rows={3} className={`${fieldClass} resize-y normal-case tracking-normal`} name="invoicing_address" autoComplete="street-address" maxLength={10000} value={formData.invoicing_address} onChange={handleChange} required /></div>
               <Field label="Nationality" name="nationality" autoComplete="country-name" maxLength={100} value={formData.nationality} onChange={handleChange} />
               <Field label="Date of birth" name="date_of_birth" type="date" autoComplete="bday" max={new Date().toISOString().slice(0, 10)} value={formData.date_of_birth} onChange={handleChange} />

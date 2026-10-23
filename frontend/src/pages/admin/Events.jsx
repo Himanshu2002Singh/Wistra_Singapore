@@ -43,6 +43,23 @@ export default function Events() {
     return () => { active = false }
   }, [])
 
+  useEffect(() => {
+    if (!open) return undefined
+    const root = document.documentElement
+    const adminContent = document.querySelector('.admin-main-content')
+    const previousBodyOverflow = document.body.style.overflow
+    const previousRootOverflow = root.style.overflow
+    const previousAdminContentOverflow = adminContent?.style.overflowY
+    document.body.style.overflow = 'hidden'
+    root.style.overflow = 'hidden'
+    if (adminContent) adminContent.style.overflowY = 'hidden'
+    return () => {
+      document.body.style.overflow = previousBodyOverflow
+      root.style.overflow = previousRootOverflow
+      if (adminContent) adminContent.style.overflowY = previousAdminContentOverflow
+    }
+  }, [open])
+
   const submit = async (event) => {
     event.preventDefault()
     if (saving) return
@@ -79,7 +96,7 @@ export default function Events() {
     </tbody></table></div>
     {!canCreate && <p className="admin-content-help">Your role can view events but cannot create them.</p>}
     {selectedRegistrations && <div className="admin-sample-modal" role="dialog" aria-modal="true" aria-label="Event registrations"><div><button type="button" className="admin-sample-modal-close" onClick={() => setSelectedRegistrations(null)} aria-label="Close registrations"><X size={18} /></button><p className="admin-kicker"><span /> Event attendance</p><h2>{selectedRegistrations.event.title} registrations</h2>{checkInMessage && <div className="admin-sample-notice" role="status">{checkInMessage}</div>}{canCheckIn && <form className="admin-content-form" onSubmit={submitCheckIn}><label>Ticket UID<input value={ticketUid} onChange={(event) => setTicketUid(event.target.value)} maxLength={64} required /></label><button type="submit">Check in attendee</button></form>}{registrationsLoading ? <p role="status">Loading registrations…</p> : <div className="admin-sample-table-wrap"><table className="admin-sample-table"><thead><tr><th>Member</th><th>Email</th><th>Payment</th><th>Ticket</th><th>Checked in</th></tr></thead><tbody>{selectedRegistrations.rows.map((row) => <tr key={row.id}><td>{[row.member?.first_name, row.member?.last_name].filter(Boolean).join(' ') || '—'}</td><td>{row.member?.email || '—'}</td><td>{row.payment_status}</td><td>{row.ticket_uid || 'Pending payment'}</td><td>{row.checked_in_at ? eventDate(row.checked_in_at) : 'No'}</td></tr>)}</tbody></table></div>}</div></div>}
-    {open && <div className="admin-sample-modal" role="dialog" aria-modal="true" aria-labelledby="create-event-title"><div><button type="button" className="admin-sample-modal-close" onClick={() => !saving && setOpen(false)} aria-label="Close form" disabled={saving}><X size={18} /></button><p className="admin-kicker"><span /> Events</p><h2 id="create-event-title">Add Event</h2>
+    {open && <div className="admin-sample-modal admin-event-modal" role="dialog" aria-modal="true" aria-labelledby="create-event-title"><div><button type="button" className="admin-sample-modal-close" onClick={() => !saving && setOpen(false)} aria-label="Close form" disabled={saving}><X size={18} /></button><p className="admin-kicker"><span /> Events</p><h2 id="create-event-title">Add Event</h2>
       {error && <div className="admin-payment-error" role="alert">{error}</div>}
       <form className="admin-content-form" onSubmit={submit}>
         <label>Event name<input required maxLength={180} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>

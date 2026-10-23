@@ -45,7 +45,7 @@ const getMyActivity = async (req, res, next) => {
     const where = ownershipFilters.length ? { [Op.or]: ownershipFilters } : { id: { [Op.eq]: null } };
     const { count, rows } = await MembershipStatusHistory.findAndCountAll({
       where,
-      attributes: ['id', 'application_id', 'membership_id', 'old_status', 'new_status', 'created_at'],
+      attributes: ['id', 'application_id', 'membership_id', 'old_status', 'new_status', 'reason', 'created_at'],
       order: [['created_at', 'DESC'], ['id', 'DESC']],
       limit: pageSize,
       offset: (page - 1) * pageSize,
@@ -60,6 +60,7 @@ const getMyActivity = async (req, res, next) => {
           type: row.application_id ? 'application' : 'membership',
           oldStatus: row.old_status,
           newStatus: row.new_status,
+          reason: row.reason,
           createdAt: row.created_at,
         })),
         pagination: {

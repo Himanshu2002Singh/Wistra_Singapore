@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import MemberLayout from '@/components/member/MemberLayout';
 import { CreditCard, CheckCircle2, History } from 'lucide-react';
 import { getMyMembershipApi } from '@/services/memberService';
@@ -111,7 +112,12 @@ const MembershipPage = () => {
         )}
 
         {!loading && !errorState && <>
-          {relatedDataUnavailable && <div role="status" className="rounded-lg border border-amber-300/25 bg-amber-300/10 p-4 text-xs text-amber-100">Some application or payment information could not be loaded. Membership details are shown when available.</div>}
+          {relatedDataUnavailable && <div role="status" className="rounded-lg border border-amber-500/35 bg-amber-50 p-4 text-xs text-amber-900">Some application or payment information could not be loaded. Membership details are shown when available.</div>}
+          {application?.status === 'CLARIFICATION_REQUIRED' && <section className="rounded-xl border border-amber-500/40 bg-amber-50 p-5 text-amber-950 shadow-sm" role="alert">
+            <h2 className="text-sm font-bold">Action needed: application clarification</h2>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{application.review_remarks || 'The review team has requested changes to your application.'}</p>
+            <Link to={`/member/applications/${application.id}/clarification`} className="mt-4 inline-flex items-center rounded bg-[var(--coral)] px-4 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#f27663]">Edit and resubmit</Link>
+          </section>}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">

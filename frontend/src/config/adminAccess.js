@@ -15,7 +15,6 @@ export const ADMIN_GATE_PERMISSIONS = [
   'events.view',
   'communications.view',
   'news.view',
-  'reports.view',
   'users.view',
   'audit_logs.view',
 ]
@@ -26,7 +25,6 @@ export const ADMIN_MODULE_PERMISSIONS = {
   Payments: ['payments.view', 'payments.read', 'payments.manage'],
   Events: ['events.view', 'events.read', 'events.manage'],
   News: ['news.view', 'news.read', 'news.manage'],
-  Reports: ['reports.view', 'reports.read'],
   'Users & Roles': ['users.view', 'users.read', 'users.manage'],
   'Audit Logs': ['audit_logs.view', 'audit_logs.read'],
 }

@@ -28,7 +28,7 @@ const validDate = (value) => {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value && date <= new Date(new Date().toISOString().slice(0, 10));
 };
 
-const validate = (body, document) => {
+const validate = (body, document, { existingDocumentAvailable = false } = {}) => {
   const errors = {};
   const acceptedFields = new Set([
     'first_name', 'last_name', 'email', 'mobile_number', 'invoicing_address', 'nationality', 'date_of_birth',
@@ -52,8 +52,8 @@ const validate = (body, document) => {
   if (!Number.isInteger(year) || year < currentYear || year > 9999 || (year === currentYear && month < new Date().getUTCMonth() + 1)) {
     errors.graduation_year = 'Enter a valid expected graduation year.';
   }
-  if (!document?.buffer) errors.proof_of_enrollment = 'Upload a proof of enrollment document.';
-  else {
+  if (!document?.buffer && !existingDocumentAvailable) errors.proof_of_enrollment = 'Upload a proof of enrollment document.';
+  else if (document?.buffer) {
     const sniffed = sniffDocument(document.buffer);
     if (!sniffed) errors.proof_of_enrollment = 'Upload a PDF, JPEG, or PNG document.';
     else if (document.claimedType && document.claimedType !== sniffed.mime && !(sniffed.mime === 'image/jpeg' && document.claimedType === 'image/pjpeg')) {
@@ -147,6 +147,113 @@ const submitStudentApplication = async (req, res, next) => {
   }
 };
 
+const resubmitStudentApplicationClarification = async (req, res, next) => {
+  let transaction;
+  let storedPath;
+  let oldStorageKey;
+  try {
+    const response = typeof req.body?.clarification_response === 'string' ? req.body.clarification_response.trim() : '';
+    if (!response) return res.status(400).json({ success: false, message: 'Explain how you addressed the requested clarification.', errors: { clarification_response: 'A response is required.' } });
+    if (response.length > 4000) return res.status(400).json({ success: false, message: 'Your clarification response must be 4000 characters or fewer.', errors: { clarification_response: 'Use no more than 4000 characters.' } });
+
+    const { clarification_response, ...body } = req.body || {};
+    const errors = validate(body, req.studentDocument, { existingDocumentAvailable: true });
+    if (Object.keys(errors).length) return res.status(400).json({ success: false, message: 'Check the highlighted application fields.', errors });
+
+    const data = Object.fromEntries(Object.entries(body).map(([key, value]) => [key, value.trim()]));
+    data.email = data.email.toLowerCase();
+    if (data.email !== String(req.user?.email || '').toLowerCase()) {
+      return res.status(403).json({ success: false, message: 'The application email must match your member account.' });
+    }
+
+    transaction = await sequelize.transaction();
+    const application = await MembershipApplication.findOne({
+      where: { id: req.params.id, user_id: req.user.id, membership_type: 'STUDENT' },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!application) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Student application not found.' });
+    }
+    if (application.status !== 'CLARIFICATION_REQUIRED') {
+      await transaction.rollback();
+      return res.status(409).json({ success: false, message: 'This application is not waiting for clarification.' });
+    }
+
+    const student = await StudentProfile.findOne({ where: { application_id: application.id }, transaction, lock: transaction.LOCK.UPDATE });
+    if (!student) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Student application details were not found.' });
+    }
+
+    const profileData = {
+      first_name: data.first_name,
+      last_name: data.last_name,
+      email: data.email,
+      mobile_number: data.mobile_number,
+      invoicing_address: data.invoicing_address,
+      nationality: data.nationality,
+      date_of_birth: data.date_of_birth,
+      institution_name: data.institution_name,
+      degree_type: data.degree_type,
+      field_of_study: data.field_of_study,
+      enrollment_type: data.enrollment_type,
+      graduation_month: Number(data.graduation_month),
+      graduation_year: Number(data.graduation_year),
+    };
+
+    if (req.studentDocument?.buffer) {
+      const documentType = sniffDocument(req.studentDocument.buffer);
+      const storageKey = `${randomUUID()}.${documentType.extension}`;
+      await fs.mkdir(STORAGE_DIR, { recursive: true, mode: 0o700 });
+      storedPath = path.join(STORAGE_DIR, storageKey);
+      await fs.writeFile(storedPath, req.studentDocument.buffer, { flag: 'wx', mode: 0o600 });
+      oldStorageKey = student.document_storage_key;
+      Object.assign(profileData, {
+        document_storage_key: storageKey,
+        document_original_name: req.studentDocument.originalName.slice(0, 255),
+        document_mime_type: documentType.mime,
+        document_size: req.studentDocument.buffer.length,
+      });
+    }
+
+    await student.update(profileData, { transaction });
+    application.status = 'PENDING';
+    application.submitted_at = new Date();
+    application.reviewed_at = null;
+    application.reviewed_by = null;
+    await application.save({ transaction });
+    await MembershipStatusHistory.create({
+      application_id: application.id,
+      old_status: 'CLARIFICATION_REQUIRED',
+      new_status: 'PENDING',
+      changed_by: req.user.id,
+      reason: `Applicant clarification response: ${response}`,
+    }, { transaction });
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'APPLICATION_CLARIFICATION_RESUBMITTED',
+      module: 'MEMBERSHIP',
+      entity_type: 'MembershipApplication',
+      entity_id: String(application.id),
+      old_values: { status: 'CLARIFICATION_REQUIRED' },
+      new_values: { status: 'PENDING', clarification_response: response },
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent'),
+    }, { transaction });
+    await transaction.commit();
+
+    if (oldStorageKey) await fs.unlink(path.join(STORAGE_DIR, path.basename(oldStorageKey))).catch(() => {});
+    return res.json({ success: true, message: 'Your updated application has been resubmitted for review.', data: { id: application.id, status: application.status } });
+  } catch (error) {
+    if (transaction && !transaction.finished) await transaction.rollback();
+    if (storedPath) await fs.unlink(storedPath).catch(() => {});
+    if (error.name === 'SequelizeUniqueConstraintError') return res.status(409).json({ success: false, message: 'An application already exists for this email address.' });
+    next(error);
+  }
+};
+
 // GET /membership/applications/student is used by the registration page to
 // check whether the signed-in member already has a student application. A new
 // applicant receives a successful empty result so opening the form is not
@@ -198,4 +305,4 @@ const downloadStudentDocument = async (req, res, next) => {
   }
 };
 
-module.exports = { submitStudentApplication, getMyStudentApplication, downloadStudentDocument };
+module.exports = { submitStudentApplication, resubmitStudentApplicationClarification, getMyStudentApplication, downloadStudentDocument };
