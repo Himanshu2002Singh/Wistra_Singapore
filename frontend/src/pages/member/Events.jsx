@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { QRCodeSVG } from 'qrcode.react'
 import MemberLayout from '@/components/member/MemberLayout'
 import { AlertCircle, Calendar, CheckCircle2, Clock3, MapPin, RefreshCw, Ticket } from 'lucide-react'
 import { getMyEventRegistrationsApi, registerForEventApi } from '@/services/eventService'
-import { getPublishedEventApi, getPublishedEventsApi } from '@/services/publicContentService'
+import { getPublishedEventApi, getPublishedEventsApi, resolveContentImageUrl } from '@/services/publicContentService'
 
 const formatDate = (value, options = { dateStyle: 'medium', timeStyle: 'short' }) => {
   if (!value) return 'Time to be announced'
@@ -13,6 +15,13 @@ const formatDate = (value, options = { dateStyle: 'medium', timeStyle: 'short' }
 }
 
 const eventIsPast = (event) => new Date(event.starts_at).getTime() < Date.now()
+const eventHasOpenRegistration = (event) => {
+  const now = Date.now()
+  const opensAt = event.registration_opens_at ? new Date(event.registration_opens_at).getTime() : 0
+  const closesAt = event.registration_closes_at ? new Date(event.registration_closes_at).getTime() : new Date(event.starts_at).getTime()
+  const full = event.capacity != null && Number(event.registration_count || 0) >= Number(event.capacity)
+  return now >= opensAt && now < closesAt && !full
+}
 
 const Events = () => {
   const [activeTab, setActiveTab] = useState('upcoming')
@@ -29,6 +38,8 @@ const Events = () => {
   const [eventDetails, setEventDetails] = useState(null)
   const [detailsLoading, setDetailsLoading] = useState(false)
   const [detailsError, setDetailsError] = useState('')
+  const location = useLocation()
+  const navigate = useNavigate()
 
   const loadEvents = useCallback(async () => {
     const [eventResult, registrationResult] = await Promise.allSettled([
@@ -64,6 +75,11 @@ const Events = () => {
   }
 
   useEffect(() => { loadEvents() }, [loadEvents])
+
+  useEffect(() => {
+    const eventId = new URLSearchParams(location.search).get('eventId')
+    if (eventId && events.some((event) => String(event.id) === eventId)) document.getElementById(`event-${eventId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [events, location.search])
 
   const registeredEventIds = useMemo(() => new Set(registrations.map(({ event_id }) => String(event_id))), [registrations])
   const upcomingEvents = events.filter((event) => !eventIsPast(event)).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))
@@ -101,6 +117,9 @@ const Events = () => {
       if (!result?.success || !result.data?.registration) throw new Error(result?.message || 'Registration could not be completed.')
       setRegistrations((current) => [{ ...result.data.registration, event }, ...current])
       setNotice(result.message || `Registration for ${event.title} was created.`)
+      if (result.data.registration.payment_status === 'AWAITING_PAYMENT') {
+        navigate('/member/payments', { state: { eventRegistrationId: result.data.registration.id } })
+      }
     } catch (registrationError) {
       if (registrationError.response?.data?.code === 'ALREADY_REGISTERED') {
         setNotice(`You are already registered for ${event.title}.`)
@@ -146,7 +165,9 @@ const Events = () => {
             const eventId = String(event.id)
             const registered = registeredEventIds.has(eventId)
             const detailIsOpen = selectedEventId === eventId
-            return <article key={eventId} className="bg-[#0c243b] border border-white/10 rounded-2xl overflow-hidden shadow-xl">
+            const full = event.capacity != null && Number(event.registration_count || 0) >= Number(event.capacity)
+            const registrationOpen = eventHasOpenRegistration(event)
+            return <article id={`event-${eventId}`} key={eventId} className="bg-[#0c243b] border border-white/10 rounded-2xl overflow-hidden shadow-xl">
               <div className="grid grid-cols-1 md:grid-cols-[150px_1fr_auto] gap-5 p-5 sm:p-6 items-start">
                 <div className="rounded-xl border border-[#5ee5e9]/20 bg-[#5ee5e9]/5 p-4 text-center">
                   <Calendar size={20} className="mx-auto mb-2 text-[#5ee5e9]" />
@@ -157,9 +178,11 @@ const Events = () => {
                   <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-[#5ee5e9]">{event.event_type}</p>
                   <h2 className="font-[var(--serif)] text-2xl text-white">{event.title}</h2>
                   <p className="line-clamp-3 text-sm leading-relaxed text-slate-300">{event.description}</p>
+                  {event.image_url && <img src={resolveContentImageUrl(event.image_url)} alt={`${event.title} event`} className="max-h-56 w-full rounded-lg object-cover" loading="lazy" />}
                   <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-400">
                     <span className="inline-flex items-center gap-1.5"><MapPin size={13} />{event.location}</span>
-                    <span>{event.is_free ? 'Free' : `Member SGD ${Number(event.member_price).toFixed(2)} · Guest SGD ${Number(event.non_member_price).toFixed(2)}`}</span>
+                    <span>{event.is_free ? 'Free' : `${event.currency || 'SGD'} ${Number(event.member_price).toFixed(2)} · Members`}</span>
+                    {event.capacity != null && <span>{Math.max(0, Number(event.capacity) - Number(event.registration_count || 0))} places remaining</span>}
                     {event.ends_at && <span className="inline-flex items-center gap-1.5"><Clock3 size={13} />Ends {formatDate(event.ends_at)}</span>}
                   </div>
                   <button type="button" onClick={() => toggleDetails(event.id)} className="text-xs font-bold uppercase tracking-wider text-[#5ee5e9] hover:text-white">{detailIsOpen ? 'Hide details' : 'View details'}</button>
@@ -174,9 +197,13 @@ const Events = () => {
                     ? <span className="inline-flex items-center gap-2 rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-emerald-200"><CheckCircle2 size={14} />Registered</span>
                     : eventIsPast(event)
                       ? <span className="inline-flex rounded-md border border-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Event ended</span>
-                      : <button type="button" onClick={() => register(event)} disabled={registeringId !== null} className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--coral)] px-4 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#f27663] disabled:cursor-wait disabled:opacity-60">
-                        <Ticket size={14} />{registeringId === eventId ? 'Registering…' : 'Register'}
-                      </button>}
+                      : full
+                        ? <span className="inline-flex rounded-md border border-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Event full</span>
+                        : !registrationOpen
+                          ? <span className="inline-flex rounded-md border border-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Registration closed</span>
+                          : <button type="button" onClick={() => register(event)} disabled={registeringId !== null} className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--coral)] px-4 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#f27663] disabled:cursor-wait disabled:opacity-60">
+                            <Ticket size={14} />{registeringId === eventId ? 'Registering…' : 'Register'}
+                          </button>}
                 </div>
               </div>
             </article>
@@ -197,8 +224,8 @@ const Events = () => {
           {historyError && <div role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">{historyError}<button type="button" onClick={refreshEvents} className="ml-3 font-semibold underline">Retry</button></div>}
           {!historyLoading && !historyError && !registrations.length && <p className="rounded-xl border border-white/10 bg-[#0c243b] p-6 text-sm text-slate-300">You have not registered for an event yet.</p>}
           {!historyLoading && !historyError && registrations.map((registration) => <article key={registration.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-white/10 bg-[#0c243b] p-5">
-            <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#5ee5e9]">{registration.event?.event_type || 'Event'}</p><h3 className="mt-1 font-[var(--serif)] text-xl text-white">{registration.event?.title || 'Event details unavailable'}</h3><p className="mt-1 text-xs text-slate-400">{registration.event?.starts_at ? formatDate(registration.event.starts_at) : 'Date unavailable'}{registration.event?.location ? ` · ${registration.event.location}` : ''}</p></div>
-            <div className="sm:text-right"><span className="inline-flex rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-emerald-200">{registration.payment_status || registration.status}</span>{registration.payment_status === 'PAID' && registration.ticket_uid && <p className="mt-2 font-mono text-[11px] text-[#5ee5e9]">Entry ticket: {registration.ticket_uid}</p>}{registration.status === 'AWAITING_PAYMENT' && <p className="mt-2 text-[11px] text-amber-200">Complete payment in My Payments to confirm entry.</p>}<p className="mt-2 text-[11px] text-slate-400">Registered {formatDate(registration.created_at)}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#5ee5e9]">{registration.event?.event_type || 'Event'}</p><h3 className="mt-1 font-[var(--serif)] text-xl text-white">{registration.event?.title || 'Event details unavailable'}</h3><p className="mt-1 text-xs text-slate-400">{registration.event?.starts_at ? formatDate(registration.event.starts_at) : 'Date unavailable'}{registration.event?.location ? ` · ${registration.event.location}` : ''}</p>{registration.event?.status === 'CANCELLED' && <p className="mt-2 text-xs font-semibold text-red-300">This event has been cancelled.</p>}</div>
+            <div className="flex flex-col items-start gap-2 sm:items-end sm:text-right"><span className={`inline-flex rounded-md border px-3 py-2 text-xs font-bold uppercase tracking-wider ${registration.payment_status === 'PAID' || registration.payment_status === 'NOT_REQUIRED' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : registration.payment_status === 'REJECTED' ? 'border-red-400/30 bg-red-400/10 text-red-200' : 'border-amber-300 bg-amber-100 text-amber-950'}`}>{registration.payment_status || registration.status}</span>{registration.payment_status === 'SUBMITTED' && <p className="max-w-full rounded bg-amber-100 px-2 py-1 text-[11px] font-medium text-amber-950">Payment submitted; awaiting Finance verification.</p>}{registration.payment_status === 'REJECTED' && <p className="text-[11px] text-red-200">Payment rejected. Review feedback in <Link to="/member/payments" className="underline">My Payments</Link> and submit corrected proof.</p>}{registration.status === 'AWAITING_PAYMENT' && <p className="max-w-full rounded bg-amber-100 px-2 py-1 text-[11px] font-medium text-amber-950">Complete payment in <Link to="/member/payments" className="underline">My Payments</Link>.</p>}{registration.ticket_uid && registration.status === 'REGISTERED' && <div className="mt-1 flex items-center gap-3 rounded-lg border border-[#5ee5e9]/25 bg-[#5ee5e9]/5 p-3 text-left"><div className="shrink-0 rounded-md bg-white p-2"><QRCodeSVG value={registration.ticket_uid} size={88} level="M" title={`Entry ticket QR code for ${registration.event?.title || 'event'}`} /></div><div className="min-w-0 sm:text-right"><p className="text-[10px] uppercase tracking-wider text-slate-400">Entry ticket UID</p><p className="mt-1 break-all font-mono text-sm text-[#5ee5e9]">{registration.ticket_uid}</p><p className="mt-1 text-[10px] text-slate-400">Show this QR code or UID to event staff.</p></div></div>}{registration.checked_in_at && <p className="text-[11px] text-emerald-200">Checked in {formatDate(registration.checked_in_at)}</p>}<p className="text-[11px] text-slate-400">Registered {formatDate(registration.created_at)}</p></div>
           </article>)}
         </section>
       </div>

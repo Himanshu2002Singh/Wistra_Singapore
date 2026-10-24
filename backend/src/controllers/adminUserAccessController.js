@@ -5,7 +5,7 @@ const { sequelize, User, Role, Permission, AuditLog } = require('../models');
 const { validateRegister } = require('../validators/authValidator');
 const { hashPassword } = require('../utils/password');
 
-const USER_ATTRIBUTES = ['id', 'first_name', 'last_name', 'email', 'status', 'role_id', 'created_at', 'updated_at'];
+const USER_ATTRIBUTES = ['id', 'first_name', 'last_name', 'email', 'phone', 'status', 'role_id', 'created_at', 'updated_at'];
 const ROLE_ATTRIBUTES = ['id', 'name', 'description', 'created_at', 'updated_at'];
 const PERMISSION_ATTRIBUTES = ['id', 'name', 'description', 'created_at', 'updated_at'];
 const ACCOUNT_STATUSES = User.rawAttributes.status.type.values;
@@ -35,7 +35,6 @@ const createAdminTeamMember = async (req, res, next) => {
       await transaction.rollback();
       return res.status(400).json({ success: false, message: 'Select an existing administrative role.' });
     }
-
     const existingUser = await User.findOne({ where: { email: normalizedData.email }, attributes: ['id'], transaction, lock: transaction.LOCK.UPDATE });
     if (existingUser) {
       await transaction.rollback();
@@ -265,6 +264,146 @@ const getAdminUserById = async (req, res, next) => {
   }
 };
 
+const updateAdminTeamMember = async (req, res, next) => {
+  const userId = parsePositiveInteger(req.params.id);
+  if (userId.error) return res.status(404).json({ success: false, message: 'Team member not found.' });
+
+  const firstName = typeof req.body?.first_name === 'string' ? req.body.first_name.trim() : '';
+  const lastName = typeof req.body?.last_name === 'string' ? req.body.last_name.trim() : '';
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const phone = typeof req.body?.phone === 'string' ? req.body.phone.trim() : '';
+  const roleIdResult = parsePositiveInteger(req.body?.role_id);
+  if (!firstName || firstName.length > 100 || !lastName || lastName.length > 100) {
+    return res.status(400).json({ success: false, message: 'First and last names are required and must be at most 100 characters.' });
+  }
+  if (!email || email.length > 255 || !EMAIL_REGEX.test(email)) {
+    return res.status(400).json({ success: false, message: 'Enter a valid email address.' });
+  }
+  if (phone && (phone.length > 20 || !/^\+?[0-9().\s-]{7,20}$/.test(phone) || (phone.match(/\d/g) || []).length < 7)) {
+    return res.status(400).json({ success: false, message: 'Enter a valid phone number with at least 7 digits.' });
+  }
+  if (roleIdResult.error || !roleIdResult.value) return res.status(400).json({ success: false, message: 'Select a valid administrative role.' });
+
+  const transaction = await sequelize.transaction();
+  try {
+    const member = await User.findByPk(userId.value, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!member) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Team member not found.' });
+    }
+    const previousRole = member.role_id ? await Role.findByPk(member.role_id, { transaction }) : null;
+    if (!isAdministrativeRole(previousRole)) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'This account is no longer on the administrative team.' });
+    }
+    const role = await Role.findByPk(roleIdResult.value, {
+      include: [{ model: Permission, as: 'permissions', attributes: ['name'], through: { attributes: [] } }],
+      transaction,
+    });
+    if (!isAdministrativeRole(role) || (role.name !== 'SUPER_ADMIN' && !hasAdministrativePermission(role))) {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: 'Select an existing administrative role.' });
+    }
+    if (Number(member.id) === Number(req.user.id) && Number(member.role_id) !== Number(role.id)) {
+      await transaction.rollback();
+      return res.status(409).json({ success: false, message: 'You cannot change your own administrative role.' });
+    }
+    const duplicate = await User.findOne({ where: { email, id: { [Op.ne]: member.id } }, attributes: ['id'], transaction, lock: transaction.LOCK.UPDATE });
+    if (duplicate) {
+      await transaction.rollback();
+      return res.status(409).json({ success: false, message: 'That email address is already used by another account.' });
+    }
+    if (previousRole.name === 'SUPER_ADMIN' && role.name !== 'SUPER_ADMIN' && member.status === 'ACTIVE') {
+      const superAdminRole = await Role.findOne({ where: { name: 'SUPER_ADMIN' }, attributes: ['id'], transaction });
+      const activeSuperAdmins = await User.count({ where: { role_id: superAdminRole.id, status: 'ACTIVE' }, transaction });
+      if (activeSuperAdmins <= 1) {
+        await transaction.rollback();
+        return res.status(409).json({ success: false, message: 'The last active Super Admin cannot be demoted.' });
+      }
+    }
+
+    const oldValues = { first_name: member.first_name, last_name: member.last_name, email: member.email, phone: member.phone, role_id: previousRole.id, role: previousRole.name };
+    member.first_name = firstName;
+    member.last_name = lastName;
+    member.email = email;
+    member.phone = phone || null;
+    member.role_id = role.id;
+    await member.save({ transaction });
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'ADMIN_TEAM_MEMBER_UPDATED',
+      module: 'USERS',
+      entity_type: 'User',
+      entity_id: String(member.id),
+      old_values: oldValues,
+      new_values: { first_name: firstName, last_name: lastName, email, phone: phone || null, role_id: role.id, role: role.name },
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent'),
+    }, { transaction });
+    await transaction.commit();
+
+    const updated = await User.findByPk(member.id, {
+      attributes: USER_ATTRIBUTES,
+      include: [{ model: Role, as: 'role', attributes: ['id', 'name', 'description'], required: false }],
+    });
+    return res.json({ success: true, message: 'Team member profile updated.', data: updated });
+  } catch (error) {
+    if (!transaction.finished) await transaction.rollback();
+    if (error.name === 'SequelizeUniqueConstraintError') return res.status(409).json({ success: false, message: 'That email address is already used by another account.' });
+    return next(error);
+  }
+};
+
+const removeAdminTeamMember = async (req, res, next) => {
+  const userId = parsePositiveInteger(req.params.id);
+  if (userId.error) return res.status(404).json({ success: false, message: 'Team member not found.' });
+  if (Number(userId.value) === Number(req.user.id)) return res.status(409).json({ success: false, message: 'You cannot remove your own team profile.' });
+
+  const transaction = await sequelize.transaction();
+  try {
+    const member = await User.findByPk(userId.value, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!member) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Team member not found.' });
+    }
+    const role = member.role_id ? await Role.findByPk(member.role_id, { transaction }) : null;
+    if (!isAdministrativeRole(role)) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'This account is no longer on the administrative team.' });
+    }
+    if (role.name === 'SUPER_ADMIN' && member.status === 'ACTIVE') {
+      const superAdminRole = await Role.findOne({ where: { name: 'SUPER_ADMIN' }, attributes: ['id'], transaction });
+      const activeSuperAdmins = await User.count({ where: { role_id: superAdminRole.id, status: 'ACTIVE' }, transaction });
+      if (activeSuperAdmins <= 1) {
+        await transaction.rollback();
+        return res.status(409).json({ success: false, message: 'The last active Super Admin cannot be removed.' });
+      }
+    }
+
+    const oldValues = { first_name: member.first_name, last_name: member.last_name, email: member.email, role_id: role.id, role: role.name, status: member.status };
+    member.status = 'INACTIVE';
+    member.role_id = null;
+    member.token_version = Number(member.token_version || 0) + 1;
+    await member.save({ transaction });
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'ADMIN_TEAM_MEMBER_REMOVED',
+      module: 'USERS',
+      entity_type: 'User',
+      entity_id: String(member.id),
+      old_values: oldValues,
+      new_values: { status: 'INACTIVE', role_id: null, profile_retained: true },
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent'),
+    }, { transaction });
+    await transaction.commit();
+    return res.json({ success: true, message: 'Team member access was deactivated and the profile removed from the team. Historical records were retained.' });
+  } catch (error) {
+    if (!transaction.finished) await transaction.rollback();
+    return next(error);
+  }
+};
+
 const getAdminRoles = async (_req, res, next) => {
   try {
     const roles = await Role.findAll({
@@ -306,6 +445,8 @@ const getAdminPermissions = async (_req, res, next) => {
 module.exports = {
   getAdminUsers,
   getAdminUserById,
+  updateAdminTeamMember,
+  removeAdminTeamMember,
   getAdminRoles,
   getAdminPermissions,
   createAdminTeamMember,

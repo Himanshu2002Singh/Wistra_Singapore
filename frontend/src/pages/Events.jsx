@@ -2,11 +2,10 @@ import React, { useEffect, useState } from 'react'
 import PageShell from '@/components/layout/PageShell'
 import PageIntro from '@/components/editorial/PageIntro'
 import Eyebrow from '@/components/editorial/Eyebrow'
-import ArrowLink from '@/components/editorial/ArrowLink'
 import EditorialImage from '@/components/editorial/EditorialImage'
 import Lightbox from '@/components/ui/Lightbox'
 import ScrollReveal from '@/components/ui/ScrollReveal'
-import { getPublishedEventsApi } from '@/services/publicContentService'
+import { getPublishedEventsApi, resolveContentImageUrl } from '@/services/publicContentService'
 
 // Exclusive Curated Hero Background Image for Events
 import eventsHeroBg from '../assets/images/wista/client-provided/wista-pink-ribbon-walk.jpg'
@@ -57,7 +56,14 @@ export default function Events() {
           location: event.location,
           type: event.event_type,
           description: event.description,
-          image: eventImages[index % eventImages.length],
+          image: resolveContentImageUrl(event.image_url) || eventImages[index % eventImages.length],
+          format: event.format,
+          is_free: event.is_free,
+          member_price: event.member_price,
+          capacity: event.capacity,
+          registration_count: Number(event.registration_count || 0),
+          registration_opens_at: event.registration_opens_at,
+          registration_closes_at: event.registration_closes_at,
         }))
         setEventState({ events, loading: false, error: false })
       })
@@ -124,7 +130,10 @@ export default function Events() {
                 <h2 id="events-featured-heading">{upcomingEvents[0].title}</h2>
                 <p className="events-featured-description">{upcomingEvents[0].description}</p>
                 <p className="events-featured-location">{upcomingEvents[0].location}</p>
-                <ArrowLink href="#upcoming-events">View the event programme</ArrowLink>
+                <p className="events-featured-location">{upcomingEvents[0].is_free ? 'Free event' : `Member price: SGD ${Number(upcomingEvents[0].member_price).toFixed(2)}`} · {upcomingEvents[0].format?.replace('_', ' ')}</p>
+                <div className="events-featured-actions">
+                  <a className="events-register-link" href={`/member/events?eventId=${encodeURIComponent(upcomingEvents[0].id)}`}>Register as a member <span aria-hidden="true">↗</span></a>
+                </div>
               </div>
             </article>
           </section>
@@ -153,6 +162,8 @@ export default function Events() {
                   <h3>{event.title}</h3>
                   <span>{event.location}</span>
                   <p className="events-upcoming-description">{event.description}</p>
+                  <p className="events-upcoming-meta">{event.is_free ? 'Free' : `Member price: SGD ${Number(event.member_price).toFixed(2)}`} · {event.format?.replace('_', ' ')}</p>
+                  <a className="events-register-link" href={`/member/events?eventId=${encodeURIComponent(event.id)}`}>Register as a member <span aria-hidden="true">↗</span></a>
                 </div>
                 <EventImageButton event={event} className="events-upcoming-image" onOpen={openEventImage} />
                 <button type="button" className="events-upcoming-view" onClick={() => openEventImage(event)} aria-label={`View ${event.title}`}>

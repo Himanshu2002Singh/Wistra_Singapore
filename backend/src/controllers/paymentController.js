@@ -192,8 +192,8 @@ const createPayment = async (req, res, next) => {
       },
     });
   } catch (error) {
-    await transaction.rollback();
-    next(error);
+    if (!transaction.finished) await transaction.rollback();
+    return next(error);
   }
 };
 
@@ -356,6 +356,7 @@ const getMyPayments = async (req, res, next) => {
         { model: Invoice, as: 'invoice' },
         { model: MembershipApplication, as: 'application' },
         { model: PaymentSubmission, as: 'submissions', attributes: { exclude: ['proof_storage_key'] } },
+        { model: EventRegistration, as: 'eventRegistration', attributes: ['id', 'event_id', 'status', 'payment_status', 'ticket_uid'], include: [{ model: Event, as: 'event', attributes: ['id', 'title', 'starts_at', 'location', 'format', 'status'] }] },
       ],
       order: [['created_at', 'DESC']],
     });
@@ -629,7 +630,7 @@ const verifyPayment = async (req, res, next) => {
 
     return res.json({
       success: true,
-      message: 'Payment successfully verified. Membership activation is complete.',
+      message: payment.purpose === 'EVENT' ? 'Event payment verified. Registration is confirmed and the ticket is available.' : 'Payment successfully verified. Membership activation is complete.',
       data: {
         payment,
         invoice,
@@ -638,8 +639,8 @@ const verifyPayment = async (req, res, next) => {
       },
     });
   } catch (error) {
-    await transaction.rollback();
-    next(error);
+    if (!transaction.finished) await transaction.rollback();
+    return next(error);
   }
 };
 

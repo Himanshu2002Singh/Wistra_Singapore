@@ -326,11 +326,11 @@ const Payments = () => {
                   <tr key={payment.id} className="hover:bg-white/5 transition">
                     <td className="p-4">{formatDate(payment.created_at)}</td>
                     <td className="p-4">
-                      <p className="font-semibold text-white">{payment.application?.membership_type ? `${payment.application.membership_type} membership payment` : 'Membership payment'}</p>
+                      <p className="font-semibold text-white">{payment.purpose === 'EVENT' ? payment.eventRegistration?.event?.title || payment.invoice?.description || 'Event registration payment' : payment.application?.membership_type ? `${payment.application.membership_type} membership payment` : 'Membership payment'}</p>
                       <p className="text-[10px] text-slate-400 font-mono">Payment: {payment.payment_reference || 'Not available'}</p>
                       <p className="text-[10px] text-slate-400 font-mono">Transaction: {payment.transaction_reference || 'Not submitted'}</p>
                       <p className="text-[10px] text-slate-400">{payment.application?.application_number ? `Application ${payment.application.application_number}` : payment.application_id ? `Application ${payment.application_id}` : 'Application not available'}{payment.membership_id ? ` · Membership ${payment.membership_id}` : ''}</p>
-                      <p className="text-[10px] text-slate-400">Purpose: {payment.purpose === 'EVENT' ? payment.invoice?.description || 'Event registration' : `${payment.application?.membership_type || payment.invoice?.membership_type || 'Membership'} membership`}</p>
+                      <p className="text-[10px] text-slate-400">{payment.purpose === 'EVENT' ? `Event registration${payment.eventRegistration?.event?.starts_at ? ` · ${formatDate(payment.eventRegistration.event.starts_at)}` : ''}${payment.eventRegistration?.event?.location ? ` · ${payment.eventRegistration.event.location}` : ''}` : `Purpose: ${payment.application?.membership_type || payment.invoice?.membership_type || 'Membership'} membership`}</p>
                       {(payment.submissions || []).map((submission) => <p key={submission.id} className="mt-1 text-[10px] text-slate-400">Submission {formatDate(submission.created_at)} · {formatStatus(submission.status)}{submission.review_reason ? ` · Finance: ${submission.review_reason}` : ''}</p>)}
                     </td>
                     <td className="p-4 font-mono font-bold text-[#5ee5e9]">{formatAmount(payment.amount, payment.currency)}</td>

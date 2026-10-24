@@ -3,7 +3,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const { Event, NewsArticle, AuditLog } = require('../models');
+const { Event, EventRegistration, NewsArticle, AuditLog } = require('../models');
 
 const NEWS_IMAGE_STORAGE_DIR = path.resolve(process.env.NEWS_IMAGE_STORAGE_PATH || path.join(__dirname, '../../private/news-images'));
 
@@ -70,7 +70,7 @@ const validDate = (value) => typeof value === 'string'
 const listAdminEvents = async (req, res, next) => {
   try {
     const events = await Event.findAll({
-      attributes: ['id', 'title', 'description', 'event_type', 'location', 'starts_at', 'ends_at', 'status', 'is_free', 'member_price', 'non_member_price', 'created_at'],
+      attributes: ['id', 'title', 'description', 'event_type', 'location', 'image_url', 'format', 'starts_at', 'ends_at', 'registration_opens_at', 'registration_closes_at', 'capacity', 'currency', 'status', 'is_free', 'member_price', 'created_at', [Event.sequelize.literal('(SELECT COUNT(*) FROM event_registrations AS registrations WHERE registrations.event_id = Event.id)'), 'registration_count']],
       order: [['starts_at', 'DESC'], ['id', 'DESC']],
       limit: 200,
     });
@@ -78,27 +78,43 @@ const listAdminEvents = async (req, res, next) => {
   } catch (error) { return next(error); }
 };
 
+const eventFieldErrors = (values, { partial = false } = {}) => {
+  const errors = {};
+  const fields = ['title', 'description', 'event_type', 'location'];
+  for (const field of fields) {
+    if (partial && !Object.hasOwn(values, field)) continue;
+    const limit = field === 'description' ? 10000 : field === 'title' ? 180 : field === 'event_type' ? 80 : 255;
+    if (!text(values[field], limit)) errors[field] = `${field} is required (maximum ${limit} characters).`;
+  }
+  for (const field of ['starts_at', 'ends_at', 'registration_opens_at', 'registration_closes_at']) {
+    if (partial && !Object.hasOwn(values, field)) continue;
+    if (values[field] !== undefined && values[field] !== null && values[field] !== '' && !validDate(values[field])) errors[field] = `${field} must be a valid ISO date and time.`;
+  }
+  if ((!partial || Object.hasOwn(values, 'starts_at')) && !values.starts_at) errors.starts_at = 'starts_at is required.';
+  if ((!partial || Object.hasOwn(values, 'ends_at')) && values.ends_at && values.starts_at && new Date(values.ends_at) < new Date(values.starts_at)) errors.ends_at = 'Event end must be on or after its start.';
+  if ((!partial || Object.hasOwn(values, 'registration_opens_at')) && values.registration_opens_at && values.starts_at && new Date(values.registration_opens_at) >= new Date(values.starts_at)) errors.registration_opens_at = 'Registration must open before the event starts.';
+  if ((!partial || Object.hasOwn(values, 'registration_closes_at')) && values.registration_closes_at && values.starts_at && new Date(values.registration_closes_at) > new Date(values.starts_at)) errors.registration_closes_at = 'Registration must close no later than the event start.';
+  if (Object.hasOwn(values, 'capacity') && values.capacity !== null && values.capacity !== '' && (!Number.isInteger(Number(values.capacity)) || Number(values.capacity) < 1 || Number(values.capacity) > 1000000)) errors.capacity = 'Capacity must be a positive whole number or blank for unlimited.';
+  if (Object.hasOwn(values, 'format') && !['IN_PERSON', 'ONLINE', 'HYBRID'].includes(values.format)) errors.format = 'Choose in-person, online, or hybrid.';
+  if (Object.hasOwn(values, 'image_url') && !validImageReference(values.image_url)) errors.image_url = 'Image must be an HTTP or HTTPS URL.';
+  if (Object.hasOwn(values, 'status') && !['DRAFT', 'PUBLISHED', 'CANCELLED'].includes(values.status)) errors.status = 'Choose draft, published, or cancelled.';
+  if (Object.hasOwn(values, 'is_free') && typeof values.is_free !== 'boolean') errors.is_free = 'is_free must be true or false.';
+  if (Object.hasOwn(values, 'member_price') && values.member_price !== '' && values.member_price !== null && (!Number.isFinite(Number(values.member_price)) || Number(values.member_price) <= 0)) errors.member_price = 'Member price must be greater than zero.';
+  return errors;
+};
+
 const createAdminEvent = async (req, res, next) => {
-  const { title, description, event_type, location, starts_at, ends_at, status = 'DRAFT', is_free = true, member_price, non_member_price } = req.body || {};
-  if (!text(title, 180) || !text(description, 10000) || !text(event_type, 80) || !text(location, 255)
-    || !validDate(starts_at) || (ends_at && !validDate(ends_at))
-    || !['DRAFT', 'PUBLISHED'].includes(status)) {
-    return res.status(400).json({ success: false, message: 'Provide a title, description, event type, location, valid start date, optional valid end date, and DRAFT or PUBLISHED status.' });
-  }
-  if (ends_at && new Date(ends_at) < new Date(starts_at)) {
-    return res.status(400).json({ success: false, message: 'The event end date must be on or after its start date.' });
-  }
-  const validPrice = (value) => value !== undefined && value !== null && value !== '' && Number.isFinite(Number(value)) && Number(value) > 0;
-  if (typeof is_free !== 'boolean' || (!is_free && (!validPrice(member_price) || !validPrice(non_member_price)))) {
-    return res.status(400).json({ success: false, message: 'Paid events require positive member and non-member prices. No event price is assumed.' });
-  }
+  const allowed = new Set(['title', 'description', 'event_type', 'location', 'image_url', 'format', 'starts_at', 'ends_at', 'registration_opens_at', 'registration_closes_at', 'capacity', 'currency', 'status', 'is_free', 'member_price']);
+  if (Object.keys(req.body || {}).some((field) => !allowed.has(field))) return res.status(400).json({ success: false, message: 'The event contains unsupported fields.' });
+  const values = { status: 'DRAFT', is_free: true, format: 'IN_PERSON', currency: 'SGD', ...req.body };
+  const errors = eventFieldErrors(values);
+  if (!values.is_free && (!Number.isFinite(Number(values.member_price)) || Number(values.member_price) <= 0)) errors.member_price = 'Paid events require a positive member price.';
+  if (!['SGD'].includes(values.currency)) errors.currency = 'Only SGD is configured for event payments.';
+  if (Object.keys(errors).length) return res.status(400).json({ success: false, message: 'Please correct the event fields.', errors });
+  if (values.status === 'PUBLISHED' && !canPublishEvents(req.user)) return res.status(403).json({ success: false, message: 'You do not have permission to publish events.' });
   const transaction = await Event.sequelize.transaction();
   try {
-    const event = await Event.create({
-      title: title.trim(), description: description.trim(), event_type: event_type.trim(), location: location.trim(),
-      starts_at: new Date(starts_at), ends_at: ends_at ? new Date(ends_at) : null, status, created_by: req.user.id,
-      is_free, member_price: is_free ? null : Number(member_price), non_member_price: is_free ? null : Number(non_member_price),
-    }, { transaction });
+    const event = await Event.create({ ...normalizeEventValues(values), created_by: req.user.id }, { transaction });
     await AuditLog.create({
       user_id: req.user.id, action: 'EVENT_CREATED', module: 'events', entity_type: 'event', entity_id: String(event.id),
       new_values: { title: event.title, status: event.status, starts_at: event.starts_at }, ip_address: req.ip,
@@ -111,6 +127,61 @@ const createAdminEvent = async (req, res, next) => {
     return next(error);
   }
 };
+
+const updateAdminEvent = async (req, res, next) => {
+  const id = parseArticleId(req.params.eventId);
+  if (!id) return res.status(404).json({ success: false, message: 'Event not found.' });
+  const allowed = new Set(['title', 'description', 'event_type', 'location', 'image_url', 'format', 'starts_at', 'ends_at', 'registration_opens_at', 'registration_closes_at', 'capacity', 'currency', 'status', 'is_free', 'member_price']);
+  const body = req.body || {};
+  if (!Object.keys(body).length || Object.keys(body).some((field) => !allowed.has(field))) return res.status(400).json({ success: false, message: 'Provide supported event fields to update.' });
+  const errors = eventFieldErrors(body, { partial: true });
+  if (body.is_free === false && body.member_price === undefined) errors.member_price = 'A paid event must have a member price.';
+  if (body.currency && body.currency !== 'SGD') errors.currency = 'Only SGD is configured for event payments.';
+  if (Object.keys(errors).length) return res.status(400).json({ success: false, message: 'Please correct the event fields.', errors });
+  if (body.status === 'PUBLISHED' && !canPublishEvents(req.user)) return res.status(403).json({ success: false, message: 'You do not have permission to publish events.' });
+  let transaction;
+  try {
+    transaction = await Event.sequelize.transaction();
+    const event = await Event.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!event) { await transaction.rollback(); return res.status(404).json({ success: false, message: 'Event not found.' }); }
+    const mergedErrors = eventFieldErrors({
+      title: body.title ?? event.title, description: body.description ?? event.description,
+      event_type: body.event_type ?? event.event_type, location: body.location ?? event.location,
+      starts_at: body.starts_at ?? new Date(event.starts_at).toISOString(),
+      ends_at: Object.hasOwn(body, 'ends_at') ? body.ends_at : (event.ends_at ? new Date(event.ends_at).toISOString() : null),
+      registration_opens_at: Object.hasOwn(body, 'registration_opens_at') ? body.registration_opens_at : (event.registration_opens_at ? new Date(event.registration_opens_at).toISOString() : null),
+      registration_closes_at: Object.hasOwn(body, 'registration_closes_at') ? body.registration_closes_at : (event.registration_closes_at ? new Date(event.registration_closes_at).toISOString() : null),
+    });
+    if (Object.keys(mergedErrors).length) { await transaction.rollback(); return res.status(400).json({ success: false, message: 'The updated event dates are inconsistent.', errors: mergedErrors }); }
+    const normalized = normalizeEventValues(body, { partial: true });
+    const nextCapacity = Object.hasOwn(normalized, 'capacity') ? normalized.capacity : event.capacity;
+    if (nextCapacity !== null) {
+      const count = await EventRegistration.count({ where: { event_id: id }, transaction });
+      if (Number(nextCapacity) < count) { await transaction.rollback(); return res.status(409).json({ success: false, message: `Capacity cannot be lower than the ${count} existing registrations.` }); }
+    }
+    const oldValues = Object.fromEntries(Object.keys(normalized).map((key) => [key, event[key]]));
+    await event.update(normalized, { transaction });
+    await AuditLog.create({ user_id: req.user.id, action: 'EVENT_UPDATED', module: 'events', entity_type: 'event', entity_id: String(event.id), old_values: oldValues, new_values: normalized, ip_address: req.ip, user_agent: String(req.get('user-agent') || '').slice(0, 500) }, { transaction });
+    await transaction.commit();
+    return res.json({ success: true, message: 'Event updated.', data: event });
+  } catch (error) { if (transaction && !transaction.finished) await transaction.rollback(); return next(error); }
+};
+
+function normalizeEventValues(values, { partial = false } = {}) {
+  const result = {};
+  for (const field of ['title', 'description', 'event_type', 'location']) if (Object.hasOwn(values, field)) result[field] = values[field].trim();
+  for (const field of ['image_url', 'format', 'currency', 'status', 'is_free']) if (Object.hasOwn(values, field)) result[field] = values[field] === '' && field === 'image_url' ? null : values[field];
+  for (const field of ['starts_at', 'ends_at', 'registration_opens_at', 'registration_closes_at']) if (Object.hasOwn(values, field)) result[field] = values[field] ? new Date(values[field]) : null;
+  if (Object.hasOwn(values, 'capacity')) result.capacity = values.capacity === '' || values.capacity === null ? null : Number(values.capacity);
+  if (Object.hasOwn(values, 'member_price')) result.member_price = values.member_price === '' || values.member_price === null ? null : Number(values.member_price);
+  if (Object.hasOwn(values, 'is_free') && values.is_free) result.member_price = null;
+  if (!partial) { result.currency = values.currency || 'SGD'; result.format = values.format || 'IN_PERSON'; result.status = values.status || 'DRAFT'; result.is_free = values.is_free !== false; }
+  return result;
+}
+
+function canPublishEvents(user) {
+  return user?.role?.name === 'SUPER_ADMIN' || user?.permissions?.some((permission) => ['events.publish', 'events.manage'].includes(permission));
+}
 
 const listAdminNews = async (req, res, next) => {
   try {
@@ -137,7 +208,7 @@ const uploadAdminNewsImage = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Use a valid JPEG, PNG, or WebP image.' });
     }
     if (process.env.NODE_ENV === 'production' && !process.env.NEWS_IMAGE_STORAGE_PATH) {
-      return res.status(503).json({ success: false, message: 'News image storage is not configured. Set NEWS_IMAGE_STORAGE_PATH to a persistent directory.' });
+      return res.status(503).json({ success: false, message: 'Content image storage is not configured. Set NEWS_IMAGE_STORAGE_PATH to a persistent directory.' });
     }
     await fs.mkdir(NEWS_IMAGE_STORAGE_DIR, { recursive: true });
     const storageKey = `${randomUUID()}.${imageType.extension}`;
@@ -266,6 +337,7 @@ const deleteAdminNews = async (req, res, next) => {
 module.exports = {
   listAdminEvents,
   createAdminEvent,
+  updateAdminEvent,
   listAdminNews,
   uploadAdminNewsImage,
   createAdminNews,

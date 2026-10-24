@@ -22,7 +22,7 @@ const getNewsImage = (req, res, next) => {
 const listPublishedEvents = async (req, res, next) => {
   try {
     const events = await Event.findAll({
-      attributes: ['id', 'title', 'description', 'event_type', 'location', 'starts_at', 'ends_at', 'is_free', 'member_price', 'non_member_price'],
+      attributes: ['id', 'title', 'description', 'event_type', 'location', 'image_url', 'format', 'starts_at', 'ends_at', 'registration_opens_at', 'registration_closes_at', 'capacity', 'currency', 'is_free', 'member_price', [Event.sequelize.literal('(SELECT COUNT(*) FROM event_registrations AS registrations WHERE registrations.event_id = Event.id)'), 'registration_count']],
       where: { status: 'PUBLISHED' },
       order: [['starts_at', 'DESC'], ['id', 'DESC']],
       limit: 200,
@@ -38,7 +38,7 @@ const getPublishedEvent = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Event not found.' });
     }
     const event = await Event.findOne({
-      attributes: ['id', 'title', 'description', 'event_type', 'location', 'starts_at', 'ends_at', 'is_free', 'member_price', 'non_member_price'],
+      attributes: ['id', 'title', 'description', 'event_type', 'location', 'image_url', 'format', 'starts_at', 'ends_at', 'registration_opens_at', 'registration_closes_at', 'capacity', 'currency', 'is_free', 'member_price', [Event.sequelize.literal('(SELECT COUNT(*) FROM event_registrations AS registrations WHERE registrations.event_id = Event.id)'), 'registration_count']],
       where: { id, status: 'PUBLISHED' },
     });
     if (!event) return res.status(404).json({ success: false, message: 'Event not found.' });

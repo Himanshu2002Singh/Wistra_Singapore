@@ -708,9 +708,6 @@ button { border: 0; background: none; color: inherit; cursor: pointer }
 .member-light-content [class*="bg-[#163d5a]"][class*="text-[#5ee5e9]"] { color: #b9fbfc }
 .member-light-content button[type="submit"] { background-color: #e85d4a !important; color: #fff !important }
 .member-light-content button[type="submit"] * { color: #fff !important }
-.member-light-content .member-card-print-action { background-color: #e85d4a !important; color: #fff !important; border-color: #e85d4a !important }
-.member-light-content .member-card-print-action:hover { background-color: #f27663 !important; border-color: #f27663 !important }
-.member-light-content .member-card-print-action * { color: #fff !important }
 .member-light-content [class*="bg-gradient"] .text-slate-200, .member-light-content [class*="bg-gradient"] .text-slate-300 { color: #d8e2e8 }
 .member-light-content [class*="bg-gradient"] .text-slate-400 { color: #aec0ca }
 .member-light-content [class*="bg-gradient"] [class*="text-[#5ee5e9]"] { color: #5ee5e9 }
@@ -822,6 +819,9 @@ button { border: 0; background: none; color: inherit; cursor: pointer }
 .admin-team-mode-switch button.is-active { border-color: #0f2d52; background: #0f2d52; color: #fff; }
 .admin-team-mode-switch button:disabled { opacity: .55; cursor: wait; }
 .admin-team-form label span { color: #657480; font-size: 9px; font-weight: 400; letter-spacing: .04em; text-transform: none; }
+.admin-users-module .admin-sample-danger { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 35px; padding: 7px 11px; border: 1px solid #e7b7b0; color: #b94940; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.admin-users-module .admin-sample-danger:hover:not(:disabled) { background: #ffe8e5; border-color: #b94940; }
+.admin-users-module .admin-sample-danger:disabled { opacity: .45; cursor: not-allowed; }
 .admin-content-form { display: grid; gap: 14px; max-height: min(66vh, 620px); overflow-y: auto; padding: 3px 3px 3px 0; }
 .admin-content-form > label { display: grid; gap: 7px; color: #536c7d; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .admin-content-form label span { color: #657480; font-size: 9px; font-weight: 400; letter-spacing: .04em; text-transform: none; }
@@ -1447,6 +1447,10 @@ body:has(.editorial-footer) .back-to-top-btn:hover { border-color: #88d2d8; back
 .events-featured-description { max-width: 480px; margin: 0; color: #52636e; font-size: 13px; line-height: 1.75; }
 .events-featured-location { margin: 22px 0; padding-top: 12px; border-top: 1px solid #d9dee3; color: #202e39; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .events-featured-copy .editorial-link { color: #0f2d52; }
+.events-featured-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-top: 8px; }
+.events-register-link { display: inline-flex; align-items: center; gap: 8px; width: fit-content; max-width: 100%; color: #0f2d52; font-size: 12px; font-weight: 700; line-height: 1.5; text-decoration: underline; text-decoration-color: #f35d5d; text-underline-offset: 5px; }
+.events-register-link span { color: #f35d5d; }
+.events-register-link:hover { color: #f35d5d; }
 .events-upcoming-section { padding-top: clamp(76px, 8vw, 114px); padding-bottom: clamp(76px, 8vw, 114px); border-top: 1px solid #d9dee3; }
 .events-list-heading,
 .events-archive-heading { display: flex; align-items: end; justify-content: space-between; gap: 30px; max-width: 1420px; margin: 0 auto 32px; }
@@ -1463,6 +1467,8 @@ body:has(.editorial-footer) .back-to-top-btn:hover { border-color: #88d2d8; back
 .events-upcoming-copy h3 { margin: 0 0 5px; color: #0f2d52; font-family: var(--serif); font-size: clamp(23px, 2.6vw, 35px); font-weight: 400; line-height: 1.08; }
 .events-upcoming-copy > span { color: #52636e; font-size: 10px; letter-spacing: .05em; }
 .events-upcoming-description { margin: 8px 0 0; color: #71808a; font-size: 11px; line-height: 1.6; }
+.events-upcoming-meta { margin: 8px 0 0; color: #52636e; font-size: 10px; font-weight: 700; letter-spacing: .04em; line-height: 1.5; text-transform: uppercase; }
+.events-upcoming-copy .events-register-link { margin-top: 12px; }
 .events-upcoming-image { width: 100%; height: 126px; }
 .events-upcoming-image img { object-position: center 40%; }
 .events-upcoming-view { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid #b8c5ce; border-radius: 50%; color: #0f2d52; font-size: 17px; transition: color .2s, background-color .2s, border-color .2s; }

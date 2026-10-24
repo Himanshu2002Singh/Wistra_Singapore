@@ -26,7 +26,10 @@ export default function Login() {
       await login(email, password)
       setLoading(false)
 
-      const requestedPath = location.state?.from?.pathname
+      const statePath = location.state?.from?.pathname
+      const stateSearch = location.state?.from?.search || ''
+      const queryRedirect = new URLSearchParams(location.search).get('redirect')
+      const requestedPath = statePath ? `${statePath}${stateSearch}` : queryRedirect
       const redirectPath = requestedPath?.startsWith('/') && !requestedPath.startsWith('//')
         ? requestedPath
         : null

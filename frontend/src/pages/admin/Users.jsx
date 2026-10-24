@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Eye, Plus, Search, X } from 'lucide-react'
+import { Eye, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { useAuth } from '@/context/AuthContext'
 import {
@@ -9,6 +9,8 @@ import {
   getAdminRolesApi,
   getAdminUserByIdApi,
   getAdminUsersApi,
+  removeAdminTeamMemberApi,
+  updateAdminTeamMemberApi,
 } from '@/services/adminUserAccessService'
 
 const PAGE_SIZE = 10
@@ -59,6 +61,10 @@ export default function Users() {
   const [detail, setDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
+  const [editMember, setEditMember] = useState(null)
+  const [editError, setEditError] = useState('')
+  const [editLoading, setEditLoading] = useState(false)
+  const [removeLoadingId, setRemoveLoadingId] = useState(null)
   const [addMemberOpen, setAddMemberOpen] = useState(false)
   const [memberMode, setMemberMode] = useState('create')
   const [memberEmail, setMemberEmail] = useState('')
@@ -159,6 +165,54 @@ export default function Users() {
     setSelectedId(null)
     setDetail(null)
     setDetailError('')
+  }
+
+  const beginEditMember = (member) => {
+    setEditMember({ ...member })
+    setEditError('')
+    setSelectedId(null)
+    setDetail(null)
+  }
+
+  const submitEditMember = async (event) => {
+    event.preventDefault()
+    if (!editMember || editLoading) return
+    setEditLoading(true)
+    setEditError('')
+    try {
+      const response = await updateAdminTeamMemberApi(editMember.id, {
+        first_name: editMember.first_name,
+        last_name: editMember.last_name,
+        email: editMember.email,
+        phone: editMember.phone || '',
+        role_id: editMember.role_id,
+      })
+      setEditMember(null)
+      setNotice(response?.message || 'Team member profile updated.')
+      await loadUsers()
+    } catch (error) {
+      setEditError(error.response?.data?.message || errorMessage(error, 'Team member'))
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  const removeMember = async (member) => {
+    if (removeLoadingId !== null) return
+    const name = userName(member)
+    if (!window.confirm(`Remove ${name} from the admin team? Their sign-in will be deactivated and historical records will be retained.`)) return
+    setRemoveLoadingId(member.id)
+    setNotice('')
+    try {
+      const response = await removeAdminTeamMemberApi(member.id)
+      if (Number(selectedId) === Number(member.id)) closeDetail()
+      setNotice(response?.message || 'Team member access deactivated and removed from the team.')
+      await loadUsers()
+    } catch (error) {
+      setUsersError(error.response?.data?.message || errorMessage(error, 'Team member'))
+    } finally {
+      setRemoveLoadingId(null)
+    }
   }
 
   const closeAddMember = () => {
@@ -274,7 +328,7 @@ export default function Users() {
         {usersLoading ? <tr><td colSpan="7" className="admin-sample-empty" role="status">Loading users…</td></tr> : users.length ? users.map((item) => <tr key={item.id}>
           <td data-label="User ID">{item.id}</td><td data-label="Name">{userName(item)}</td><td data-label="Email">{item.email}</td><td data-label="Role">{humanize(item.role?.name) || '—'}</td>
           <td data-label="Account status"><span className={`admin-sample-status status-${String(item.status || '').toLowerCase()}`}>{humanize(item.status)}</span></td><td data-label="Created">{dateValue(item.created_at)}</td>
-          <td data-label="Actions"><div className="admin-sample-actions"><button type="button" onClick={() => loadDetail(item.id)} className="admin-sample-view"><Eye size={14} /> View</button></div></td>
+          <td data-label="Actions"><div className="admin-sample-actions"><button type="button" onClick={() => loadDetail(item.id)} className="admin-sample-view"><Eye size={14} /> View</button>{isSuperAdmin && <><button type="button" onClick={() => beginEditMember(item)} className="admin-sample-view"><Pencil size={14} /> Edit</button><button type="button" onClick={() => removeMember(item)} className="admin-sample-danger" disabled={removeLoadingId !== null || Number(item.id) === Number(user?.id)} title={Number(item.id) === Number(user?.id) ? 'You cannot remove your own team profile' : 'Remove team member'}><Trash2 size={14} />{removeLoadingId === item.id ? 'Removing…' : 'Delete'}</button></>}</div></td>
         </tr>) : <tr><td colSpan="7" className="admin-sample-empty">{total ? 'No users match these filters.' : 'No users found.'}</td></tr>}
       </tbody></table></div>
       <div className="admin-sample-pagination"><span>{usersLoading ? 'Loading records' : `${total} team member${total === 1 ? '' : 's'}${totalPages > 1 ? ` · Page ${page} of ${totalPages}` : ''}`}</span><div><button type="button" disabled={usersLoading || page <= 1} onClick={() => setPage((current) => Math.max(current - 1, 1))}>Previous</button><button type="button" disabled={usersLoading || page >= totalPages} onClick={() => setPage((current) => Math.min(current + 1, totalPages))}>Next</button></div></div>
@@ -297,10 +351,27 @@ export default function Users() {
       <p className="admin-kicker"><span /> Team member detail</p>
       {detailLoading ? <p className="admin-user-detail-state" role="status">Loading user details…</p> : detailError ? <div className="admin-payment-error" role="alert">{detailError}<button type="button" onClick={() => loadDetail(selectedId)}>Try again</button></div> : detail && <>
         <h2>{userName(detail)}</h2>
-        <DetailRows title="Account" values={{ user_id: detail.id, email: detail.email, status: detail.status, role: detail.role?.name ? humanize(detail.role.name) : '—', created_at: dateValue(detail.created_at, true), updated_at: dateValue(detail.updated_at, true) }} />
+        <DetailRows title="Account" values={{ user_id: detail.id, email: detail.email, phone: detail.phone, status: detail.status, role: detail.role?.name ? humanize(detail.role.name) : '—', created_at: dateValue(detail.created_at, true), updated_at: dateValue(detail.updated_at, true) }} />
         <p className="admin-user-detail-state">Credentials, password hashes, and tokens are not returned by the admin API.</p>
       </>}
       <div className="admin-sample-modal-actions"><button type="button" onClick={closeDetail}>Close</button></div>
+    </div></div>}
+
+    {editMember && <div className="admin-sample-modal" role="dialog" aria-modal="true" aria-labelledby="edit-team-member-title"><div>
+      <button type="button" className="admin-sample-modal-close" onClick={() => !editLoading && setEditMember(null)} aria-label="Close edit team member form" disabled={editLoading}><X size={18} /></button>
+      <p className="admin-kicker"><span /> Team access</p>
+      <h2 id="edit-team-member-title">Edit Team Member</h2>
+      <p className="admin-team-form-help">Update the team member’s contact details and administrative role. Their password will not change.</p>
+      {editError && <div className="admin-payment-error" role="alert">{editError}</div>}
+      <form className="admin-team-form" onSubmit={submitEditMember}>
+        <label htmlFor="edit-team-member-first-name">First name<input id="edit-team-member-first-name" required maxLength={100} autoComplete="given-name" value={editMember.first_name || ''} onChange={(event) => setEditMember((current) => ({ ...current, first_name: event.target.value }))} /></label>
+        <label htmlFor="edit-team-member-last-name">Last name<input id="edit-team-member-last-name" required maxLength={100} autoComplete="family-name" value={editMember.last_name || ''} onChange={(event) => setEditMember((current) => ({ ...current, last_name: event.target.value }))} /></label>
+        <label htmlFor="edit-team-member-email">Email address<input id="edit-team-member-email" type="email" required maxLength={255} autoComplete="email" value={editMember.email || ''} onChange={(event) => setEditMember((current) => ({ ...current, email: event.target.value }))} /></label>
+        <label htmlFor="edit-team-member-phone">Phone number <span>(optional)</span><input id="edit-team-member-phone" type="tel" maxLength={20} autoComplete="tel" inputMode="tel" pattern="(?=(?:\D*\d){7})\+?[0-9().\s-]{7,20}" title="Enter at least 7 digits; +, spaces, parentheses, hyphens, and periods are allowed." value={editMember.phone || ''} onChange={(event) => setEditMember((current) => ({ ...current, phone: event.target.value }))} /></label>
+        <label htmlFor="edit-team-member-role">Administrative role<select id="edit-team-member-role" required value={editMember.role_id || ''} onChange={(event) => setEditMember((current) => ({ ...current, role_id: event.target.value }))} disabled={Number(editMember.id) === Number(user?.id)}><option value="">Select an existing role</option>{adminRoles.map((role) => <option key={role.id} value={role.id}>{humanize(role.name)}</option>)}</select></label>
+        {Number(editMember.id) === Number(user?.id) && <p className="admin-team-form-help">You can edit your profile, but your own Super Admin role is locked.</p>}
+        <div className="admin-sample-modal-actions"><button type="button" onClick={() => setEditMember(null)} disabled={editLoading}>Cancel</button><button type="submit" disabled={editLoading || directoryLoading}>{editLoading ? 'Saving changes…' : 'Save Changes'}</button></div>
+      </form>
     </div></div>}
 
     {addMemberOpen && <div className="admin-sample-modal" role="dialog" aria-modal="true" aria-labelledby="add-team-member-title"><div>

@@ -14,6 +14,7 @@ class EventRegistration extends Model {
       currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'SGD' },
       ticket_uid: { type: DataTypes.STRING(64), allowNull: true, unique: true },
       checked_in_at: { type: DataTypes.DATE, allowNull: true },
+      checked_in_by: { type: DataTypes.BIGINT.UNSIGNED, allowNull: true },
     }, {
       sequelize, modelName: 'EventRegistration', tableName: 'event_registrations', underscored: true, timestamps: true,
     });
@@ -22,6 +23,7 @@ class EventRegistration extends Model {
   static associate(models) {
     this.belongsTo(models.Event, { foreignKey: 'event_id', as: 'event' });
     this.belongsTo(models.User, { foreignKey: 'user_id', as: 'member' });
+    this.belongsTo(models.User, { foreignKey: 'checked_in_by', as: 'checkedInBy' });
     this.hasOne(models.Payment, { foreignKey: 'event_registration_id', as: 'payment' });
     this.hasOne(models.Invoice, { foreignKey: 'event_registration_id', as: 'invoice' });
   }

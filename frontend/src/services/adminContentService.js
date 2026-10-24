@@ -2,8 +2,14 @@ import api from './api'
 
 export const getAdminEventsApi = async () => (await api.get('/admin/content/events')).data
 export const createAdminEventApi = async (data) => (await api.post('/admin/content/events', data)).data
+export const updateAdminEventApi = async (id, data) => (await api.patch(`/admin/content/events/${id}`, data)).data
 export const getAdminEventRegistrationsApi = async (id) => (await api.get(`/admin/content/events/${id}/registrations`)).data
-export const checkInEventApi = async (ticket_uid) => (await api.post('/admin/content/events/check-in', { ticket_uid })).data
+export const checkInEventApi = async (event_id, ticket_uid) => (await api.post('/admin/content/events/check-in', { event_id, ticket_uid })).data
+export const uploadAdminEventImageApi = async (file) => {
+  const body = new FormData()
+  body.append('image', file)
+  return (await api.post('/admin/content/events/images', body)).data
+}
 export const getAdminNewsApi = async () => (await api.get('/admin/content/news')).data
 export const uploadAdminNewsImageApi = async (file) => {
   const body = new FormData()

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import MemberLayout from '@/components/member/MemberLayout';
 import { getMyMembershipApi } from '@/services/memberService';
-import { IdCard, Printer, CheckCircle2, UserRound } from 'lucide-react';
+import { IdCard, CheckCircle2, UserRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const STATUS_STYLES = {
@@ -157,7 +157,7 @@ const Card = () => {
 
             <div className="lg:col-span-6 space-y-6 w-full">
               <div className="bg-[#0c243b] p-6 sm:p-8 rounded-2xl border border-white/10 shadow-2xl space-y-4">
-                <h3 className="text-xl font-[var(--serif)] font-normal text-white border-b border-white/10 pb-3">Card Actions & Verification</h3>
+                <h3 className="text-xl font-[var(--serif)] font-normal text-white border-b border-white/10 pb-3">Membership & Verification</h3>
 
                 <div className="space-y-2 text-xs text-slate-300">
                   <p><strong>Membership status:</strong> <span className={`font-bold ${status === 'ACTIVE' ? 'text-[#59D781]' : 'text-white'}`}>{formatStatus(status)}</span></p>
@@ -165,17 +165,6 @@ const Card = () => {
                   <p><strong>Membership ends:</strong> <span className="text-white font-medium">{endDate || 'Not available'}</span></p>
                   <p><strong>Issuing Association:</strong> WISTA Singapore</p>
                   <p className="text-slate-400">This page does not have a backend member verification service. The card and its details are not independently verifiable by scanning.</p>
-                </div>
-
-                <div className="pt-4 border-t border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => window.print()}
-                    className="member-card-print-action w-full py-3.5 bg-[#e85d4a] hover:bg-[#f27663] text-white text-xs font-bold tracking-widest uppercase rounded-lg transition shadow-lg flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <Printer size={16} />
-                    <span>Print / Save Digital Card</span>
-                  </button>
                 </div>
               </div>
 
@@ -189,10 +178,6 @@ const Card = () => {
                   <li className="flex items-start gap-2">
                     <CheckCircle2 size={14} className="text-[#59D781] shrink-0 mt-0.5" />
                     <span>Your status and dates reflect the latest membership information returned by WISTA Singapore.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 size={14} className="text-[#59D781] shrink-0 mt-0.5" />
-                    <span>Printing opens your browser’s print dialog; no separate card download is generated.</span>
                   </li>
                 </ul>
               </div>

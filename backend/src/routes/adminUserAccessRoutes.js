@@ -12,6 +12,8 @@ const {
   getAdminPermissions,
   createAdminTeamMember,
   assignExistingUserRole,
+  updateAdminTeamMember,
+  removeAdminTeamMember,
 } = require('../controllers/adminUserAccessController');
 
 router.use(authenticateToken, requirePermission('users.view', 'users.read', 'users.manage'));
@@ -20,6 +22,8 @@ router.get('/roles', getAdminRoles);
 router.get('/permissions', getAdminPermissions);
 router.post('/create', requireRole('SUPER_ADMIN'), createAdminTeamMember);
 router.post('/assign-role', requireRole('SUPER_ADMIN'), assignExistingUserRole);
+router.put('/:id', requireRole('SUPER_ADMIN'), updateAdminTeamMember);
+router.delete('/:id', requireRole('SUPER_ADMIN'), removeAdminTeamMember);
 router.get('/', getAdminUsers);
 router.get('/:id', getAdminUserById);
 

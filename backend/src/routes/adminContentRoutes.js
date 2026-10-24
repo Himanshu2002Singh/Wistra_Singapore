@@ -5,7 +5,7 @@ const router = express.Router();
 const authenticateToken = require('../middleware/authenticate');
 const requirePermission = require('../middleware/requirePermission');
 const {
-  listAdminEvents, createAdminEvent, listAdminNews, uploadAdminNewsImage, createAdminNews,
+  listAdminEvents, createAdminEvent, updateAdminEvent, listAdminNews, uploadAdminNewsImage, createAdminNews,
   updateAdminNews, setAdminNewsPublication, deleteAdminNews,
 } = require('../controllers/adminContentController');
 const { listAdminEventRegistrations, checkInEventRegistration } = require('../controllers/eventRegistrationController');
@@ -20,6 +20,8 @@ const denyMemberRole = (req, res, next) => {
 
 router.get('/events', authenticateToken, denyMemberRole, requirePermission('events.read', 'events.view', 'events.manage'), listAdminEvents);
 router.post('/events', authenticateToken, requirePermission('events.create', 'events.manage'), createAdminEvent);
+router.post('/events/images', authenticateToken, requirePermission('events.create', 'events.update', 'events.manage'), newsImageUpload, uploadAdminNewsImage);
+router.patch('/events/:eventId', authenticateToken, requirePermission('events.update', 'events.manage', 'events.publish'), updateAdminEvent);
 router.get('/events/:eventId/registrations', authenticateToken, denyMemberRole, requirePermission('events.manage_registrations', 'events.read', 'events.manage'), listAdminEventRegistrations);
 router.post('/events/check-in', authenticateToken, requirePermission('events.checkin', 'attendance.manage', 'events.manage'), checkInEventRegistration);
 router.get('/news', authenticateToken, denyMemberRole, requirePermission('news.read', 'news.view', 'news.manage'), listAdminNews);
